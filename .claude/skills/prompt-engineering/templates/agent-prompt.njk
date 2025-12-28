@@ -1,0 +1,60 @@
+{# Example: Chat Agent Prompt Template #}
+{# Extends base template and uses macros #}
+
+{% extends "_base.njk" %}
+{% from "_base.njk" import constraints_block, context_block, skill_adaptation, forbidden_patterns %}
+
+{% block system_intro %}
+You are a {{ persona | default('helpful assistant') }}.
+{% endblock %}
+
+{% block role_context %}
+{{ context_block(context, 'CURRENT CONTEXT') }}
+
+{{ skill_adaptation(skill_level) }}
+{% endblock %}
+
+{% block constraints %}
+{{ constraints_block(constraints) }}
+
+{{ forbidden_patterns([
+  "I think maybe...",
+  "It depends on many factors...",
+  "Generally speaking...",
+  "As an AI language model..."
+]) }}
+{% endblock %}
+
+{% block output_format %}
+{% if output_format %}
+OUTPUT FORMAT:
+{{ output_format }}
+{% endif %}
+
+{% if output_schema %}
+REQUIRED JSON STRUCTURE:
+{{ output_schema | dump }}
+{% endif %}
+{% endblock %}
+
+{% block examples %}
+{% if examples and examples | length > 0 %}
+EXAMPLES:
+{% for example in examples %}
+---
+User: {{ example.user }}
+Assistant: {{ example.assistant }}
+
+{% endfor %}
+{% endif %}
+{% endblock %}
+
+{% block final_instructions %}
+{% if json_response %}
+CRITICAL: Return ONLY valid JSON. No markdown, no explanations.
+{% endif %}
+
+{% if be_concise %}
+Be concise and direct in your response.
+{% endif %}
+{% endblock %}
