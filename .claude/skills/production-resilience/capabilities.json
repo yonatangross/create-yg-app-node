@@ -1,0 +1,31 @@
+{
+  "skill": "production-resilience",
+  "version": "1.0.0",
+  "description": "Production resilience patterns for Node.js backends",
+  "capabilities": [
+    {
+      "id": "circuit-breakers",
+      "name": "Circuit Breaker Pattern",
+      "keywords": ["circuit", "breaker", "opossum", "fallback"],
+      "load_conditions": ["external service calls", "failure handling"]
+    },
+    {
+      "id": "rate-limiting",
+      "name": "Rate Limiting",
+      "keywords": ["rate", "limit", "throttle", "quota"],
+      "load_conditions": ["API protection", "rate limiting"]
+    },
+    {
+      "id": "caching",
+      "name": "Caching Strategies",
+      "keywords": ["cache", "redis", "ttl", "invalidation"],
+      "load_conditions": ["caching data", "performance optimization"]
+    },
+    {
+      "id": "graceful-shutdown",
+      "name": "Graceful Shutdown",
+      "keywords": ["shutdown", "graceful", "sigterm", "cleanup"],
+      "load_conditions": ["deployment", "container orchestration"]
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "skill": "github-cli",
+  "version": "1.0.0",
+  "description": "GitHub CLI (gh) commands for efficient workflow management",
+  "capabilities": [
+    {
+      "id": "issues",
+      "name": "Issue Management",
+      "keywords": ["issue", "bug", "feature", "create", "list", "close"],
+      "load_conditions": ["creating issues", "managing bugs", "feature requests"]
+    },
+    {
+      "id": "pull-requests",
+      "name": "Pull Request Workflow",
+      "keywords": ["pr", "pull request", "review", "merge", "squash"],
+      "load_conditions": ["creating PRs", "code review", "merging branches"]
+    },
+    {
+      "id": "releases",
+      "name": "Release Management",
+      "keywords": ["release", "tag", "version", "changelog"],
+      "load_conditions": ["creating releases", "version tagging"]
+    },
+    {
+      "id": "workflows",
+      "name": "GitHub Actions",
+      "keywords": ["workflow", "action", "ci", "cd", "run"],
+      "load_conditions": ["CI/CD", "workflow management", "GitHub Actions"]
+    }
+  ]
+}

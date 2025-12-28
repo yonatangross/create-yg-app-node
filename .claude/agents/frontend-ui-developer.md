@@ -28,26 +28,59 @@ Check `.claude/context-triggers.md` for keywords (component, UI, React, frontend
 - TailwindCSS for styling
 - TanStack Query for data fetching
 
-### React 19 APIs (MANDATORY for new code)
+### React 19.2 APIs (MANDATORY for new code - Dec 2025)
 ```typescript
-// ✅ useOptimistic - Optimistic UI updates
+// ✅ useActionState - Form actions with pending state (replaces useFormState)
+import { useActionState } from 'react';
+
+async function submitAction(prevState: FormState, formData: FormData) {
+  const result = await fetch('/api/submit', {
+    method: 'POST',
+    body: formData,
+  });
+  if (!result.ok) return { errors: { form: 'Failed' } };
+  return { success: true };
+}
+
+const [state, formAction, isPending] = useActionState(submitAction, { errors: {} });
+
+// ✅ useFormStatus - Form submission state (inside form, for buttons)
+import { useFormStatus } from 'react-dom';
+
+function SubmitButton() {
+  const { pending } = useFormStatus();
+  return <button disabled={pending}>{pending ? 'Saving...' : 'Save'}</button>;
+}
+
+// ✅ useOptimistic - Instant feedback with rollback
+import { useOptimistic } from 'react';
+
 const [optimisticItems, addOptimistic] = useOptimistic(
   items,
   (state, newItem) => [...state, { ...newItem, pending: true }]
-)
-
-// ✅ useFormStatus - Form submission state (inside form)
-function SubmitButton() {
-  const { pending } = useFormStatus()
-  return <button disabled={pending}>{pending ? 'Saving...' : 'Save'}</button>
-}
+);
 
 // ✅ use() - Unwrap promises/context in render
-const data = use(dataPromise) // Suspense-aware promise unwrapping
-const theme = use(ThemeContext) // Context without useContext
+import { use } from 'react';
 
-// ✅ startTransition - Mark updates as non-urgent
-startTransition(() => setSearchResults(results))
+const data = use(dataPromise); // Suspense-aware promise unwrapping
+const theme = use(ThemeContext); // Context without useContext
+
+// ✅ ref as prop - No more forwardRef needed!
+function Input({ ref, ...props }: { ref?: React.Ref<HTMLInputElement> }) {
+  return <input ref={ref} {...props} />;
+}
+
+// ✅ Document metadata in components
+function Page({ title }: { title: string }) {
+  return (
+    <>
+      <title>{title} | MyApp</title>
+      <meta name="description" content="..." />
+      <main>...</main>
+    </>
+  );
+}
 ```
 
 ### Zod Runtime Validation (MANDATORY)

@@ -1,0 +1,31 @@
+{
+  "skill": "security-checklist",
+  "version": "1.0.0",
+  "description": "Security best practices for Node.js applications",
+  "capabilities": [
+    {
+      "id": "authentication",
+      "name": "Authentication",
+      "keywords": ["auth", "jwt", "session", "password"],
+      "load_conditions": ["implementing auth", "user authentication"]
+    },
+    {
+      "id": "authorization",
+      "name": "Authorization",
+      "keywords": ["rbac", "permission", "role", "access"],
+      "load_conditions": ["access control", "permissions"]
+    },
+    {
+      "id": "input-validation",
+      "name": "Input Validation",
+      "keywords": ["validation", "sanitize", "xss", "injection"],
+      "load_conditions": ["input handling", "preventing injection"]
+    },
+    {
+      "id": "secrets-management",
+      "name": "Secrets Management",
+      "keywords": ["secret", "env", "vault", "credential"],
+      "load_conditions": ["managing secrets", "environment variables"]
+    }
+  ]
+}

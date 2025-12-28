@@ -61,20 +61,34 @@ const chain = prompt.pipe(model).pipe(new StringOutputParser());
 ```
 
 ```typescript
-// LangGraph agent
-import { StateGraph, END } from '@langchain/langgraph';
+// LangGraph 1.0 Agent with Annotation API (Dec 2025)
+import { Annotation, StateGraph, END } from '@langchain/langgraph';
+import { BaseMessage } from '@langchain/core/messages';
+import { ToolNode } from '@langchain/langgraph/prebuilt';
 
-const workflow = new StateGraph({
-  channels: {
-    messages: { default: () => [] },
-    context: { default: () => '' },
-  },
+// Define state with Annotation (replaces channels)
+const AgentState = Annotation.Root({
+  messages: Annotation<BaseMessage[]>({
+    reducer: (prev, next) => [...prev, ...next],
+    default: () => [],
+  }),
+  context: Annotation<string>({
+    default: () => '',
+  }),
 });
 
-workflow.addNode('agent', agentNode);
-workflow.addNode('tools', toolNode);
-workflow.addEdge('agent', 'tools');
-workflow.addConditionalEdges('tools', shouldContinue);
+// Build graph with new pattern
+const workflow = new StateGraph(AgentState)
+  .addNode('agent', async (state) => {
+    const response = await model.invoke(state.messages);
+    return { messages: [response] };
+  })
+  .addNode('tools', new ToolNode(tools))
+  .addEdge('__start__', 'agent')
+  .addConditionalEdges('agent', shouldContinue, ['tools', END])
+  .addEdge('tools', 'agent');
+
+const app = workflow.compile();
 ```
 
 ## Standards

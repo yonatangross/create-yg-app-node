@@ -61,14 +61,28 @@ app.post('/api/users',
 ```
 
 ```typescript
-// Drizzle schema
-import { pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+// Drizzle 0.45 schema with relations (Dec 2025)
+import { pgTable, text, timestamp, uuid, index } from 'drizzle-orm/pg-core';
+import { relations, InferSelectModel, InferInsertModel } from 'drizzle-orm';
 
 export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
   email: text('email').notNull().unique(),
-  createdAt: timestamp('created_at').defaultNow(),
-});
+  name: text('name').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  emailIdx: index('users_email_idx').on(table.email),
+}));
+
+// Type inference from schema
+export type User = InferSelectModel<typeof users>;
+export type NewUser = InferInsertModel<typeof users>;
+
+// Relations for query builder
+export const usersRelations = relations(users, ({ many }) => ({
+  posts: many(posts),
+}));
 ```
 
 ## Standards

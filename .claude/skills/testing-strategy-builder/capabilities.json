@@ -1,0 +1,31 @@
+{
+  "skill": "testing-strategy-builder",
+  "version": "1.0.0",
+  "description": "Testing patterns for Node.js and React applications",
+  "capabilities": [
+    {
+      "id": "unit-testing",
+      "name": "Unit Testing",
+      "keywords": ["unit", "test", "vitest", "jest"],
+      "load_conditions": ["writing unit tests", "testing functions"]
+    },
+    {
+      "id": "integration-testing",
+      "name": "Integration Testing",
+      "keywords": ["integration", "api", "test", "supertest"],
+      "load_conditions": ["testing APIs", "integration tests"]
+    },
+    {
+      "id": "component-testing",
+      "name": "Component Testing",
+      "keywords": ["react", "component", "testing-library", "msw"],
+      "load_conditions": ["testing React components", "UI testing"]
+    },
+    {
+      "id": "e2e-testing",
+      "name": "E2E Testing",
+      "keywords": ["e2e", "playwright", "cypress", "browser"],
+      "load_conditions": ["end-to-end testing", "browser automation"]
+    }
+  ]
+}
