@@ -1,0 +1,67 @@
+{
+  "name": "langfuse-observability",
+  "description": "LLM observability, tracing, prompt management, and evaluations with Langfuse",
+  "version": "1.0.0",
+  "capabilities": [
+    {
+      "id": "tracing",
+      "name": "LangChain.js Tracing",
+      "description": "Automatic tracing with CallbackHandler for chains, agents, and RAG",
+      "file": "references/tracing.md",
+      "keywords": ["trace", "callback", "langchain", "monitoring", "spans"]
+    },
+    {
+      "id": "prompt-management",
+      "name": "Prompt Management",
+      "description": "Version-controlled prompts with Langfuse, linked to traces for analytics",
+      "file": "references/prompt-management.md",
+      "keywords": ["prompt", "version", "template", "label", "production"]
+    },
+    {
+      "id": "evaluations",
+      "name": "LLM Evaluations",
+      "description": "Score traces, run LLM-as-judge evaluations, track quality metrics",
+      "file": "references/evaluations.md",
+      "keywords": ["evaluation", "score", "judge", "quality", "metrics", "feedback"]
+    },
+    {
+      "id": "cost-tracking",
+      "name": "Cost & Usage Tracking",
+      "description": "Track token usage, costs, and model analytics",
+      "file": "references/cost-tracking.md",
+      "keywords": ["cost", "tokens", "usage", "billing", "analytics"]
+    },
+    {
+      "id": "production-patterns",
+      "name": "Production Patterns",
+      "description": "Request-scoped handlers, batching, error handling, graceful shutdown",
+      "file": "references/production-patterns.md",
+      "keywords": ["production", "middleware", "hono", "batching", "shutdown"]
+    }
+  ],
+  "examples": [
+    {
+      "id": "callback-handler",
+      "name": "Basic CallbackHandler Setup",
+      "description": "Automatic tracing for LangChain.js chains",
+      "file": "examples/callback-handler.ts"
+    },
+    {
+      "id": "prompt-versioning",
+      "name": "Prompt Versioning Integration",
+      "description": "Fetch and use versioned prompts from Langfuse",
+      "file": "examples/prompt-versioning.ts"
+    },
+    {
+      "id": "hono-middleware",
+      "name": "Hono Middleware Integration",
+      "description": "Request-scoped Langfuse handler for Hono APIs",
+      "file": "examples/hono-middleware.ts"
+    }
+  ],
+  "integrations": {
+    "langchain-js-patterns": "Uses CallbackHandler with chains and agents",
+    "prompt-engineering": "Syncs Nunjucks templates to Langfuse prompt management",
+    "production-resilience": "Integrates with circuit breakers and health checks"
+  }
+}

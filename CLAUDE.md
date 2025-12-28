@@ -62,27 +62,49 @@ Then run: `git log --oneline -10 && git status`
 | Purpose | Location |
 |---------|----------|
 | Agent definitions | `.claude/agents/*.md` |
-| Skills (6 total) | `.claude/skills/*/SKILL.md` |
+| Skills (11 total) | `.claude/skills/*/SKILL.md` |
 | Parallel execution rules | `.claude/instructions/parallel-execution-rules.md` |
 | Code quality rules | `.claude/instructions/code-quality-rules.md` |
 | Context initialization | `.claude/instructions/context-initialization.md` |
 
 ---
 
-## Agents (4 core)
+## Agents (11 specialized)
 
-- `backend-system-architect` - Hono APIs, Drizzle, Node.js patterns
-- `frontend-ui-developer` - React 19, Vite, TailwindCSS
-- `code-quality-reviewer` - ESLint, TypeScript, testing standards
-- `ai-ml-engineer` - LangChain.js, RAG, agent orchestration
+### Development
+- `ui-designer` - Visual specs, Tailwind, Figma-style mockups
+- `frontend-developer` - React 19 implementation from design specs
+- `backend-developer` - Hono routes, services, business logic
+- `database-architect` - Drizzle schema, migrations, queries
+
+### AI/LLM
+- `ai-agent-engineer` - LangChain.js, LangGraph, RAG, Langfuse tracing
+- `prompt-engineer` - Nunjucks templates, structured output, few-shot
+
+### Quality Assurance
+- `test-engineer` - Vitest, Playwright MCP for E2E testing
+- `visual-qa` - Chrome extension for visual verification, GIF recording
+- `accessibility-auditor` - WCAG, axe-core injection via browser tools
+- `code-reviewer` - Lint, types, patterns (read-only)
+- `security-auditor` - OWASP, npm audit, secrets scanning (read-only)
 
 ---
 
-## Skills (6 total)
+## Skills (11 total)
 
+### Core Stack
+- `hono-patterns` - Web Standards-first Hono 4.11 patterns
+- `drizzle-production` - Type-safe Drizzle ORM 0.45 patterns
+- `react-19-patterns` - React 19.2 with useActionState, useOptimistic
+
+### AI/LLM
+- `langchain-js-patterns` - LLM integration, agents, RAG
+- `langfuse-observability` - Tracing, prompt management, evaluations
+- `prompt-engineering` - Nunjucks templates, structured output
+
+### Quality & Operations
 - `api-design-framework` - REST API patterns with Hono
 - `testing-strategy-builder` - Vitest, Playwright, MSW
-- `langchain-js-patterns` - LLM integration, agents, RAG
 - `production-resilience` - Circuit breakers, health checks
 - `security-checklist` - OWASP, auth, input validation
 - `github-cli` - gh commands for workflow
@@ -148,9 +170,10 @@ Config: `.mcp.json` | Docs: `.claude/instructions/mcp-servers.md`
 │   └── package.json
 │
 ├── .claude/                # Claude Code config
-│   ├── agents/             # 4 agents
-│   ├── skills/             # 6 skills
+│   ├── agents/             # 11 specialized agents
+│   ├── skills/             # 11 skills with capabilities.json
 │   ├── instructions/       # 8 instruction files
+│   ├── workflows/          # Multi-agent workflows
 │   ├── hooks/              # Git protection
 │   ├── context/            # Shared state
 │   └── settings.json

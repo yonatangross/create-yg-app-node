@@ -22,6 +22,7 @@ Activates for: AI, LLM, LangChain, agent, RAG, embedding, prompt, GPT, Claude, v
 - @langchain/langgraph 1.0
 - @langchain/openai, @langchain/anthropic
 - pgvector for embeddings
+- Langfuse for observability (tracing, prompt management, evaluations)
 
 ## LangGraph 1.0 Patterns (MANDATORY)
 
@@ -156,6 +157,65 @@ function trackUsage(model: string, inputTokens: number, outputTokens: number) {
 }
 ```
 
+## Langfuse Observability (MANDATORY)
+
+### CallbackHandler for Tracing
+```typescript
+import { CallbackHandler } from '@langfuse/langchain';
+
+const handler = new CallbackHandler({
+  userId: c.get('userId'),
+  sessionId: c.req.header('x-session-id'),
+  tags: ['production', 'chat'],
+});
+
+const result = await chain.invoke(
+  { input: message },
+  { callbacks: [handler] }
+);
+
+// CRITICAL: Always flush
+await handler.flushAsync();
+```
+
+### Prompt Management
+```typescript
+import { Langfuse } from 'langfuse';
+
+const langfuse = new Langfuse();
+
+// Use labeled version in production
+const langfusePrompt = await langfuse.getPrompt('rag-assistant', undefined, {
+  label: 'production',
+});
+
+// Convert to LangChain with trace linking
+const prompt = PromptTemplate.fromTemplate(
+  langfusePrompt.getLangchainPrompt()
+).withConfig({
+  metadata: { langfusePrompt }, // Auto-links to prompt version
+});
+```
+
+### User Feedback Scoring
+```typescript
+// After receiving user feedback
+langfuse.score({
+  traceId: handler.traceId,
+  name: 'user-helpful',
+  value: helpful ? 1 : 0,
+  dataType: 'BOOLEAN',
+});
+```
+
+### Required Patterns
+1. **Always use CallbackHandler** for chain/agent invocations
+2. **Always flush** at request end: `await handler.flushAsync()`
+3. **Include userId and sessionId** for analytics
+4. **Use labeled prompts** in production (never latest)
+5. **Capture errors** in trace metadata
+6. **Return traceId** to frontend for feedback linking
+
 ## Anti-Patterns (FORBIDDEN)
 ```typescript
 // ❌ No timeout on LLM calls
@@ -169,6 +229,16 @@ const response = await model.invoke('You are a helpful assistant...');
 
 // ❌ No error handling
 const docs = await vectorStore.similaritySearch(query, 5);
+
+// ❌ No Langfuse tracing
+const result = await chain.invoke({ input }); // No callbacks!
+
+// ❌ Forgetting to flush
+const result = await chain.invoke(input, { callbacks: [handler] });
+return result; // Missing handler.flushAsync()!
+
+// ❌ Using latest prompt version in production
+const prompt = await langfuse.getPrompt('name'); // Should use label!
 ```
 
 ## Handoff Protocol

@@ -21,6 +21,7 @@ Activates for: prompt, template, jinja, nunjucks, system prompt, few-shot, chain
 - **Nunjucks** - Jinja2-compatible template engine for Node.js
 - **LangChain.js** - LLM orchestration (integration by ai-agent-engineer)
 - **Zod** - Output schema validation
+- **Langfuse** - Prompt versioning and management in production
 
 ## Template Structure
 
@@ -163,6 +164,32 @@ Response must be under 150 words. Use bullet points for lists exceeding 3 items.
    - Verify no undefined variables
    - Test with LLM for quality
 
+## Langfuse Prompt Management
+
+### Sync Local Templates to Langfuse
+For production prompts, upload to Langfuse for version control and A/B testing:
+
+```typescript
+// Use Langfuse {{variable}} syntax (will be converted to {variable} for LangChain)
+// Template variables should match between local Nunjucks and Langfuse
+
+// In Langfuse UI:
+// Name: rag-assistant
+// Content: You are a {{persona}}. Context: {{context}}. Query: {{query}}
+// Labels: development, staging, production
+```
+
+### Development Workflow
+1. **Development**: Use local Nunjucks templates for iteration
+2. **Testing**: Render and validate with sample data
+3. **Staging**: Upload to Langfuse with `staging` label
+4. **Production**: Promote to `production` label after validation
+
+### Variable Syntax
+- **Nunjucks local**: `{{ variable }}` (double braces, spaces)
+- **Langfuse**: `{{variable}}` (double braces, no spaces)
+- **LangChain**: `{variable}` (single braces) - auto-converted by `getLangchainPrompt()`
+
 ## Handoff Protocol
 
 After creating prompts:
@@ -171,6 +198,7 @@ After creating prompts:
 3. Document variables in `loader.ts`
 4. Notify `ai-agent-engineer` for integration
 5. Create test file in `tests/prompts/`
+6. **For production prompts**: Upload to Langfuse with appropriate labels
 
 ## Example Task
 
