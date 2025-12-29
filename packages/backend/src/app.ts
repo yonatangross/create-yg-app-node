@@ -13,6 +13,7 @@ import { errorHandler } from './middleware/error-handler.js';
 import { healthRoutes } from './routes/health.js';
 import { usersRoutes } from './routes/users.js';
 import { chatRoutes, ragRoutes } from './routes/chat.js';
+import { getConfig } from './core/config.js';
 import type { AppEnv } from './types.js';
 
 // =============================================================================
@@ -25,14 +26,16 @@ const baseApp = new Hono<AppEnv>();
 baseApp.use('*', requestId());
 baseApp.use('*', requestLogger());
 baseApp.use('*', secureHeaders());
+// Parse CORS origins from environment configuration
+const corsOrigins = getConfig()
+  .CORS_ORIGINS.split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
 baseApp.use(
   '*',
   cors({
-    origin: [
-      'http://localhost:5173',
-      'http://localhost:4173',
-      'http://localhost:4000',
-    ],
+    origin: corsOrigins,
     credentials: true,
   })
 );

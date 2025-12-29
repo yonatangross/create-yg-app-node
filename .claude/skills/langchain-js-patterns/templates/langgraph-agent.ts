@@ -10,6 +10,7 @@ import { tool } from "@langchain/core/tools";
 import { ToolNode } from "@langchain/langgraph/prebuilt";
 import { MemorySaver } from "@langchain/langgraph";
 import { z } from "zod";
+import { evaluate } from "mathjs";
 
 // =============================================================================
 // State Definition with Annotation API
@@ -52,12 +53,15 @@ const searchTool = tool(
 
 const calculatorTool = tool(
   async ({ expression }) => {
-    // Use a safe math library in production (e.g., mathjs)
+    // Using mathjs for safe mathematical expression evaluation
+    // This prevents code injection attacks that would be possible with eval/Function
     try {
-      const result = Function(`"use strict"; return (${expression})`)();
+      // Evaluate with empty scope to prevent access to external variables
+      const result = evaluate(expression, {});
       return String(result);
-    } catch {
-      return "Error: Invalid expression";
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      return `Error: Invalid expression - ${message}`;
     }
   },
   {
