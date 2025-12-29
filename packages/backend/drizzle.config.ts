@@ -11,7 +11,7 @@ export default defineConfig({
   dbCredentials: {
     url:
       process.env.DATABASE_URL ||
-      'postgresql://postgres:postgres@localhost:5433/yg_app_node',
+      'postgresql://postgres:postgres@localhost:5434/yg_app_node',
   },
   verbose: true,
   strict: true,

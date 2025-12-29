@@ -8,6 +8,9 @@
  * - Per-IP rate limiting
  * - Different limits for different endpoint types
  * - Graceful degradation if Redis is unavailable
+ *
+ * Now uses the unified Redis client from core/redis.ts
+ * for proper connection management and graceful shutdown.
  */
 
 import {
@@ -16,8 +19,8 @@ import {
   RateLimiterRes,
 } from 'rate-limiter-flexible';
 import type { Context, Next } from 'hono';
-import { Redis } from 'ioredis';
-import { getConfig } from '../core/config.js';
+import type { Redis } from 'ioredis';
+import { getRedis, isRedisHealthy } from '../core/redis.js';
 import { getLogger } from '../core/logger.js';
 
 const logger = getLogger();
@@ -28,9 +31,9 @@ const logger = getLogger();
 const rateLimiters = new Map<string, RateLimiterMemory | RateLimiterRedis>();
 
 /**
- * Redis client for rate limiting (shared instance)
+ * Redis client availability flag
  */
-let redisClient: Redis | null = null;
+let redisAvailable = true;
 
 /**
  * Rate limit configuration presets
@@ -78,43 +81,33 @@ export const RATE_LIMIT_PRESETS = {
 export type RateLimitPreset = keyof typeof RATE_LIMIT_PRESETS;
 
 /**
- * Get or create Redis client for rate limiting
+ * Get Redis client for rate limiting (uses unified client)
+ *
+ * Falls back to null if Redis is unavailable, allowing
+ * graceful degradation to in-memory rate limiting.
  */
 function getRedisClient(): Redis | null {
-  if (redisClient) {
-    return redisClient;
-  }
-
-  const config = getConfig();
-
-  if (!config.REDIS_URL) {
-    logger.warn('REDIS_URL not configured, using in-memory rate limiting');
+  if (!redisAvailable) {
     return null;
   }
 
   try {
-    redisClient = new Redis(config.REDIS_URL, {
-      enableOfflineQueue: false,
-      maxRetriesPerRequest: 1,
-      retryStrategy: (times: number) => {
-        if (times > 3) {
-          logger.error(
-            'Redis connection failed for rate limiter, falling back to memory'
-          );
-          return null;
-        }
-        return Math.min(times * 100, 3000);
-      },
+    const redis = getRedis();
+
+    // Check health on first use
+    isRedisHealthy().then((healthy) => {
+      if (!healthy) {
+        logger.warn(
+          'Redis unhealthy, rate limiting will use in-memory fallback'
+        );
+        redisAvailable = false;
+      }
     });
 
-    redisClient.on('error', (error: Error) => {
-      logger.error({ error }, 'Redis rate limiter error');
-    });
-
-    logger.info('Redis rate limiter initialized');
-    return redisClient;
+    return redis;
   } catch (error) {
-    logger.error({ error }, 'Failed to create Redis client for rate limiter');
+    logger.warn({ error }, 'Redis unavailable, using in-memory rate limiting');
+    redisAvailable = false;
     return null;
   }
 }
@@ -364,13 +357,16 @@ export function customRateLimit(
 }
 
 /**
- * Shutdown rate limiter (close Redis connection)
+ * Shutdown rate limiter
+ *
+ * Note: The actual Redis connection is now managed by core/redis.ts.
+ * This function clears internal caches but delegates connection
+ * shutdown to the central Redis manager via shutdownRedis().
  */
 export async function shutdownRateLimiter(): Promise<void> {
-  if (redisClient) {
-    await redisClient.quit();
-    redisClient = null;
-    logger.info('Rate limiter Redis connection closed');
-  }
+  // Redis connection is managed centrally by core/redis.ts
+  // Clear internal rate limiter caches
   rateLimiters.clear();
+  redisAvailable = true; // Reset for potential restart
+  logger.info('Rate limiter shutdown (connection managed by core/redis)');
 }

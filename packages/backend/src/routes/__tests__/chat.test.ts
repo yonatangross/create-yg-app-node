@@ -46,6 +46,38 @@ vi.mock('../../agents/rag-agent.js', () => ({
   ragQueryStream: vi.fn(),
 }));
 
+// Mock Redis for rate limiting (returns mock client)
+vi.mock('../../core/redis.js', () => ({
+  getRedis: vi.fn(() => ({
+    ping: vi.fn().mockResolvedValue('PONG'),
+    get: vi.fn().mockResolvedValue(null),
+    set: vi.fn().mockResolvedValue('OK'),
+    setex: vi.fn().mockResolvedValue('OK'),
+    del: vi.fn().mockResolvedValue(1),
+    // For rate-limiter-flexible
+    multi: vi.fn(() => ({
+      set: vi.fn().mockReturnThis(),
+      pttl: vi.fn().mockReturnThis(),
+      exec: vi.fn().mockResolvedValue([
+        [null, 'OK'],
+        [null, 60000],
+      ]),
+    })),
+    evalsha: vi.fn().mockResolvedValue([0, 60000]),
+    eval: vi.fn().mockResolvedValue([0, 60000]),
+    script: vi.fn().mockResolvedValue('OK'),
+  })),
+  isRedisHealthy: vi.fn().mockResolvedValue(true),
+  getRedisStats: vi.fn().mockResolvedValue({
+    connected: true,
+    memoryUsedBytes: 1024,
+    memoryUsedHuman: '1K',
+    connectedClients: 1,
+    uptime: 3600,
+    version: '7.0.0',
+  }),
+}));
+
 describe('Chat Routes', () => {
   beforeEach(() => {
     vi.clearAllMocks();

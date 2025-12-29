@@ -245,11 +245,13 @@ export interface ChatOutput {
 
 /**
  * Process a chat message through the agent
+ *
+ * Langfuse tracing is fire-and-forget - errors are logged but never propagate.
  */
 export async function chat(input: ChatInput): Promise<ChatOutput> {
   const agent = await getChatAgent();
 
-  // Create Langfuse handler for tracing
+  // Create Langfuse handler for tracing (wrapped in SafeCallbackHandler)
   const langfuseHandler = createLangfuseHandler({
     userId: input.userId,
     sessionId: input.sessionId,
@@ -263,60 +265,70 @@ export async function chat(input: ChatInput): Promise<ChatOutput> {
     'Processing chat message'
   );
 
+  const invokeParams = {
+    messages: [new HumanMessage(input.message)],
+    userId: input.userId,
+    sessionId: input.sessionId,
+    persona: input.persona || 'helpful assistant',
+  };
+
+  const invokeConfig = {
+    configurable: { thread_id: input.threadId },
+    callbacks,
+  };
+
+  // Invoke the agent - SafeCallbackHandler ensures tracing errors don't propagate
+  let result;
   try {
-    // Invoke the agent
-    const result = await agent.invoke(
-      {
-        messages: [new HumanMessage(input.message)],
-        userId: input.userId,
-        sessionId: input.sessionId,
-        persona: input.persona || 'helpful assistant',
-      },
-      {
-        configurable: { thread_id: input.threadId },
-        callbacks,
-      }
-    );
-
-    // Extract response and tools used
-    const lastMessage = result.messages[
-      result.messages.length - 1
-    ] as AIMessage;
-    const response =
-      typeof lastMessage.content === 'string'
-        ? lastMessage.content
-        : JSON.stringify(lastMessage.content);
-
-    // Collect tools used from message history
-    const toolsUsed: string[] = [];
-    for (const m of result.messages) {
-      if ('tool_calls' in m && Array.isArray((m as AIMessage).tool_calls)) {
-        for (const tc of (m as AIMessage).tool_calls!) {
-          if (tc.name) toolsUsed.push(tc.name);
-        }
-      }
-    }
-
-    // Flush Langfuse
-    if (langfuseHandler) {
-      await langfuseHandler.flushAsync();
-    }
-
-    return {
-      response,
-      traceId: langfuseHandler?.traceId,
-      toolsUsed: [...new Set(toolsUsed)],
-    };
+    result = await agent.invoke(invokeParams, invokeConfig);
   } catch (error) {
-    logger.error({ error, input }, 'Chat agent error');
-
-    // Ensure Langfuse is flushed even on error
+    // Extract error details for proper logging (LangGraph errors may have non-standard structure)
+    const errorDetails = {
+      message: error instanceof Error ? error.message : String(error),
+      name: error instanceof Error ? error.name : 'Unknown',
+      stack: error instanceof Error ? error.stack : undefined,
+      cause:
+        error instanceof Error
+          ? (error as Error & { cause?: unknown }).cause
+          : undefined,
+      // Include any additional properties from LangGraph errors
+      ...(typeof error === 'object' && error !== null ? error : {}),
+    };
+    logger.error({ error: errorDetails, input }, 'Chat agent error');
+    // Flush Langfuse on error (SafeCallbackHandler makes this safe)
     if (langfuseHandler) {
       await langfuseHandler.flushAsync();
     }
-
     throw error;
   }
+
+  // Extract response and tools used
+  const lastMessage = result.messages[result.messages.length - 1] as AIMessage;
+  const response =
+    typeof lastMessage.content === 'string'
+      ? lastMessage.content
+      : JSON.stringify(lastMessage.content);
+
+  // Collect tools used from message history
+  const toolsUsed: string[] = [];
+  for (const m of result.messages) {
+    if ('tool_calls' in m && Array.isArray((m as AIMessage).tool_calls)) {
+      for (const tc of (m as AIMessage).tool_calls!) {
+        if (tc.name) toolsUsed.push(tc.name);
+      }
+    }
+  }
+
+  // Flush Langfuse (SafeCallbackHandler makes this safe)
+  if (langfuseHandler) {
+    await langfuseHandler.flushAsync();
+  }
+
+  return {
+    response,
+    traceId: langfuseHandler?.traceId,
+    toolsUsed: [...new Set(toolsUsed)],
+  };
 }
 
 // =============================================================================
@@ -325,6 +337,8 @@ export async function chat(input: ChatInput): Promise<ChatOutput> {
 
 /**
  * Stream chat responses
+ *
+ * Langfuse tracing is fire-and-forget - errors are logged but never propagate.
  */
 export async function* chatStream(input: ChatInput): AsyncGenerator<{
   type: 'token' | 'tool_call' | 'tool_result' | 'done';
@@ -333,6 +347,7 @@ export async function* chatStream(input: ChatInput): AsyncGenerator<{
 }> {
   const agent = await getChatAgent();
 
+  // Create Langfuse handler for tracing (wrapped in SafeCallbackHandler)
   const langfuseHandler = createLangfuseHandler({
     userId: input.userId,
     sessionId: input.sessionId,
@@ -341,21 +356,23 @@ export async function* chatStream(input: ChatInput): AsyncGenerator<{
 
   const callbacks = langfuseHandler ? [langfuseHandler] : [];
 
-  try {
-    const stream = await agent.stream(
-      {
-        messages: [new HumanMessage(input.message)],
-        userId: input.userId,
-        sessionId: input.sessionId,
-        persona: input.persona || 'helpful assistant',
-      },
-      {
-        configurable: { thread_id: input.threadId },
-        callbacks,
-        streamMode: 'values',
-      }
-    );
+  const streamParams = {
+    messages: [new HumanMessage(input.message)],
+    userId: input.userId,
+    sessionId: input.sessionId,
+    persona: input.persona || 'helpful assistant',
+  };
 
+  const streamConfig = {
+    configurable: { thread_id: input.threadId },
+    callbacks,
+    streamMode: 'values' as const,
+  };
+
+  // Stream with SafeCallbackHandler - tracing errors won't propagate
+  const stream = await agent.stream(streamParams, streamConfig);
+
+  try {
     for await (const chunk of stream) {
       const lastMessage = chunk.messages[chunk.messages.length - 1];
 
@@ -377,6 +394,7 @@ export async function* chatStream(input: ChatInput): AsyncGenerator<{
       traceId: langfuseHandler?.traceId,
     };
   } finally {
+    // Flush Langfuse (SafeCallbackHandler makes this safe)
     if (langfuseHandler) {
       await langfuseHandler.flushAsync();
     }

@@ -1,55 +1,241 @@
-version: "3.8"
+# =============================================================================
+# YG App Node - Docker Compose (Updated for Langfuse v3 + PostgreSQL 17)
+# =============================================================================
+#
+# Services:
+#   - postgres:      PostgreSQL 17 + pgvector (app database)
+#   - redis:         Redis 7 (app caching + Langfuse queue)
+#   - clickhouse:    ClickHouse (Langfuse v3 analytics)
+#   - minio:         MinIO S3 (Langfuse blob storage)
+#   - langfuse-web:  Langfuse web UI
+#   - langfuse-worker: Langfuse background worker
+#
+# Ports (unique - won't conflict with skillforge/other projects):
+#   - 5434: PostgreSQL
+#   - 6381: Redis
+#   - 3002: Langfuse UI
+#   - 9011: MinIO Console
+#   - 9010: MinIO S3 API
+#
+# Usage:
+#   docker compose up -d
+#   docker compose logs -f langfuse-web
+# =============================================================================
 
 services:
+  # ---------------------------------------------------------------------------
+  # PostgreSQL 17 + pgvector (Application Database + Langfuse metadata)
+  # ---------------------------------------------------------------------------
   postgres:
-    image: pgvector/pgvector:pg16
+    image: pgvector/pgvector:pg17
     container_name: yg-app-node-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: yg_app_node
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-yg_app_node}
     ports:
-      - "5433:5432"  # Different port to avoid conflicts
+      - "5434:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./docker/init-langfuse-db.sql:/docker-entrypoint-initdb.d/init-langfuse-db.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - yg-app-network
 
+  # ---------------------------------------------------------------------------
+  # Redis 7 (Application Cache + Langfuse Queue)
+  # ---------------------------------------------------------------------------
   redis:
     image: redis:7-alpine
     container_name: yg-app-node-redis
     restart: unless-stopped
+    command: redis-server --requirepass ${REDIS_PASSWORD:-redis_password}
     ports:
-      - "6380:6379"  # Different port to avoid conflicts
+      - "6381:6379"
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-redis_password}", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - yg-app-network
 
-  langfuse:
-    image: langfuse/langfuse:latest
-    container_name: yg-app-node-langfuse
+  # ---------------------------------------------------------------------------
+  # ClickHouse (Langfuse v3 Analytics Storage)
+  # ---------------------------------------------------------------------------
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.3
+    container_name: yg-app-node-clickhouse
     restart: unless-stopped
+    user: "101:101"
     environment:
-      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/langfuse
-      NEXTAUTH_URL: http://localhost:3001
-      NEXTAUTH_SECRET: my-langfuse-secret-change-in-production
-      SALT: my-langfuse-salt-change-in-production
+      CLICKHOUSE_DB: langfuse
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-langfuse}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-langfuse_clickhouse_password}
+    ports:
+      - "127.0.0.1:8125:8123"  # HTTP interface (localhost only)
+      - "127.0.0.1:9012:9000"  # Native interface (localhost only)
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+      - clickhouse_logs:/var/log/clickhouse-server
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8123/ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - yg-app-network
+
+  # ---------------------------------------------------------------------------
+  # MinIO S3 (Langfuse Blob Storage)
+  # ---------------------------------------------------------------------------
+  minio:
+    image: minio/minio:latest
+    container_name: yg-app-node-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minio_admin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minio_password_change_me}
+    ports:
+      - "9010:9000"        # S3 API
+      - "9011:9001"        # MinIO Console
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - yg-app-network
+
+  # ---------------------------------------------------------------------------
+  # Langfuse Web (UI + API)
+  # ---------------------------------------------------------------------------
+  langfuse-web:
+    image: langfuse/langfuse:3
+    container_name: yg-app-node-langfuse-web
+    restart: unless-stopped
+    ports:
+      - "3002:3000"
+    environment:
+      # Database
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/langfuse
+
+      # ClickHouse
+      CLICKHOUSE_URL: http://clickhouse:8123
+      CLICKHOUSE_MIGRATION_URL: clickhouse://${CLICKHOUSE_USER:-langfuse}:${CLICKHOUSE_PASSWORD:-langfuse_clickhouse_password}@clickhouse:9000/langfuse
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-langfuse}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-langfuse_clickhouse_password}
+      CLICKHOUSE_CLUSTER_ENABLED: "false"
+
+      # Redis
+      REDIS_CONNECTION_STRING: redis://:${REDIS_PASSWORD:-redis_password}@redis:6379
+
+      # S3/MinIO
+      LANGFUSE_S3_EVENT_UPLOAD_ENABLED: "true"
+      LANGFUSE_S3_EVENT_UPLOAD_BUCKET: langfuse
+      LANGFUSE_S3_EVENT_UPLOAD_REGION: us-east-1
+      LANGFUSE_S3_EVENT_UPLOAD_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-minio_admin}
+      LANGFUSE_S3_EVENT_UPLOAD_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-minio_password_change_me}
+      LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT: http://minio:9000
+      LANGFUSE_S3_EVENT_UPLOAD_FORCE_PATH_STYLE: "true"
+
+      # Auth
+      NEXTAUTH_URL: http://localhost:3002
+      NEXTAUTH_SECRET: ${LANGFUSE_NEXTAUTH_SECRET:-my-nextauth-secret-change-in-production-32chars}
+      SALT: ${LANGFUSE_SALT:-my-salt-change-in-production}
+      ENCRYPTION_KEY: ${LANGFUSE_ENCRYPTION_KEY:-0000000000000000000000000000000000000000000000000000000000000000}
+
+      # Telemetry
       TELEMETRY_ENABLED: "false"
       NEXT_PUBLIC_SIGN_UP_DISABLED: "false"
-    ports:
-      - "3001:3000"  # Different port for Langfuse UI
+
+      # Worker coordination
+      LANGFUSE_WORKER_HOST: http://langfuse-worker:3030
+      LANGFUSE_WORKER_PASSWORD: ${LANGFUSE_WORKER_PASSWORD:-worker_password_change_me}
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider -q http://$(hostname -i):3000/api/public/health || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    networks:
+      - yg-app-network
+
+  # ---------------------------------------------------------------------------
+  # Langfuse Worker (Background Processing)
+  # ---------------------------------------------------------------------------
+  langfuse-worker:
+    image: langfuse/langfuse-worker:3
+    container_name: yg-app-node-langfuse-worker
+    restart: unless-stopped
+    environment:
+      # Database
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/langfuse
+
+      # ClickHouse
+      CLICKHOUSE_URL: http://clickhouse:8123
+      CLICKHOUSE_MIGRATION_URL: clickhouse://${CLICKHOUSE_USER:-langfuse}:${CLICKHOUSE_PASSWORD:-langfuse_clickhouse_password}@clickhouse:9000/langfuse
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-langfuse}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-langfuse_clickhouse_password}
+      CLICKHOUSE_CLUSTER_ENABLED: "false"
+
+      # Redis
+      REDIS_CONNECTION_STRING: redis://:${REDIS_PASSWORD:-redis_password}@redis:6379
+
+      # S3/MinIO
+      LANGFUSE_S3_EVENT_UPLOAD_ENABLED: "true"
+      LANGFUSE_S3_EVENT_UPLOAD_BUCKET: langfuse
+      LANGFUSE_S3_EVENT_UPLOAD_REGION: us-east-1
+      LANGFUSE_S3_EVENT_UPLOAD_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-minio_admin}
+      LANGFUSE_S3_EVENT_UPLOAD_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-minio_password_change_me}
+      LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT: http://minio:9000
+      LANGFUSE_S3_EVENT_UPLOAD_FORCE_PATH_STYLE: "true"
+
+      # Auth
+      SALT: ${LANGFUSE_SALT:-my-salt-change-in-production}
+      ENCRYPTION_KEY: ${LANGFUSE_ENCRYPTION_KEY:-0000000000000000000000000000000000000000000000000000000000000000}
+
+      # Worker
+      LANGFUSE_WORKER_PASSWORD: ${LANGFUSE_WORKER_PASSWORD:-worker_password_change_me}
+      PORT: 3030
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    networks:
+      - yg-app-network
 
 volumes:
   postgres_data:
   redis_data:
+  clickhouse_data:
+  clickhouse_logs:
+  minio_data:
+
+networks:
+  yg-app-network:
+    driver: bridge

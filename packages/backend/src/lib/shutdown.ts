@@ -1,5 +1,6 @@
 import { getLogger } from '../core/logger.js';
 import { shutdownLangfuse } from '../core/langfuse.js';
+import { shutdownRedis } from '../core/redis.js';
 import { shutdownEmbeddingsCache } from '../shared/embeddings.js';
 import { closeVectorStore } from '../shared/vector-store.js';
 import { closeCheckpointer } from '../shared/checkpointer.js';
@@ -56,7 +57,7 @@ export function gracefulShutdown(
         }
       });
 
-      // Cleanup AI/LLM services and resilience components
+      // Cleanup AI/LLM services first (they may use Redis)
       await Promise.allSettled([
         shutdownLangfuse(5000),
         shutdownEmbeddingsCache(),
@@ -64,6 +65,9 @@ export function gracefulShutdown(
         closeCheckpointer(),
         shutdownRateLimiter(),
       ]);
+
+      // Shutdown Redis after all dependent services (single connection point)
+      await shutdownRedis();
 
       // Cleanup circuit breakers (synchronous)
       shutdownCircuitBreakers();
