@@ -252,9 +252,12 @@ describe('Chat Routes', () => {
       vi.mocked(chatStream).mockReturnValue(mockGenerator());
 
       const threadId = '12345678-1234-1234-1234-123456789abc';
-      await app.request(
+      const res = await app.request(
         `/api/chat/stream?message=Test&threadId=${threadId}&persona=assistant`
       );
+
+      // Must consume response to trigger SSE handler execution
+      await res.text();
 
       expect(chatStream).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -545,9 +548,12 @@ describe('RAG Routes', () => {
       vi.mocked(ragQueryStream).mockReturnValue(mockGenerator());
 
       const threadId = '12345678-1234-1234-1234-123456789abc';
-      await app.request(
+      const res = await app.request(
         `/api/rag/stream?query=Test&threadId=${threadId}&maxSources=3`
       );
+
+      // Must consume response to trigger SSE handler execution
+      await res.text();
 
       expect(ragQueryStream).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -566,7 +572,10 @@ describe('RAG Routes', () => {
       };
       vi.mocked(ragQueryStream).mockReturnValue(mockGenerator());
 
-      await app.request('/api/rag/stream?query=Test&maxSources=5');
+      const res = await app.request('/api/rag/stream?query=Test&maxSources=5');
+
+      // Must consume response to trigger SSE handler execution
+      await res.text();
 
       expect(ragQueryStream).toHaveBeenCalledWith(
         expect.objectContaining({
