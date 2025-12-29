@@ -1,0 +1,50 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Skill Capabilities",
+  "description": "Schema for validating skill capabilities.json files",
+  "type": "object",
+  "properties": {
+    "skill": {
+      "type": "string",
+      "description": "Skill name identifier"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Semantic version"
+    },
+    "capabilities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique capability identifier"
+          },
+          "name": {
+            "type": "string",
+            "description": "Human-readable capability name"
+          },
+          "keywords": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Keywords for capability matching"
+          },
+          "description": {
+            "type": "string",
+            "description": "What this capability does"
+          },
+          "file": {
+            "type": "string",
+            "description": "Reference file for detailed documentation"
+          }
+        },
+        "required": ["id", "name", "keywords"]
+      }
+    }
+  },
+  "required": ["skill", "version", "capabilities"]
+}

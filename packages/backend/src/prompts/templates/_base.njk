@@ -1,0 +1,117 @@
+{# Base template with shared macros for agent prompts #}
+{# Nunjucks (Jinja2-compatible) template for Node.js/LangChain.js #}
+
+{#- ============================================================================= -#}
+{#- MACROS: Reusable prompt components -#}
+{#- ============================================================================= -#}
+
+{#- Macro for required output structure documentation -#}
+{% macro output_schema(schema, requirements) %}
+REQUIRED OUTPUT STRUCTURE:
+{{ schema | dump }}
+
+Field Requirements:
+{% for field, desc in requirements %}
+- **{{ field }}**: {{ desc }}
+{% endfor %}
+{% endmacro %}
+
+{#- Macro for constraints list -#}
+{% macro constraints_block(constraints) %}
+{% if constraints and constraints | length > 0 %}
+CONSTRAINTS:
+{% for constraint in constraints %}
+- {{ constraint }}
+{% endfor %}
+
+{% endif %}
+{% endmacro %}
+
+{#- Macro for few-shot examples -#}
+{% macro few_shot_examples(examples) %}
+EXAMPLES:
+{% for example in examples %}
+---
+Input: {{ example.input }}
+Output: {{ example.output }}
+{% if example.explanation %}
+Explanation: {{ example.explanation }}
+{% endif %}
+
+{% endfor %}
+{% endmacro %}
+
+{#- Macro for skill level adaptation -#}
+{% macro skill_adaptation(level) %}
+{% if level == 'beginner' %}
+ADAPTATION FOR BEGINNER:
+- Use simple language, avoid jargon
+- Provide step-by-step instructions
+- Include more context and explanations
+- Suggest foundational resources first
+{% elif level == 'intermediate' %}
+ADAPTATION FOR INTERMEDIATE:
+- Assume basic setup knowledge
+- Focus on implementation patterns
+- Balance explanation with efficiency
+- Reference best practices
+{% elif level == 'expert' %}
+ADAPTATION FOR EXPERT:
+- Skip basics, focus on advanced techniques
+- Discuss trade-offs and edge cases
+- Include performance optimizations
+- Reference production concerns
+{% endif %}
+{% endmacro %}
+
+{#- Macro for context injection -#}
+{% macro context_block(context, label) %}
+{% if context %}
+{{ label | default('CONTEXT') }}:
+{{ context }}
+
+{% endif %}
+{% endmacro %}
+
+{#- Macro for single response instruction -#}
+{% macro single_response() %}
+IMPORTANT: Return exactly ONE structured response. Do not return multiple responses or extra commentary.
+{% endmacro %}
+
+{#- Macro for evidence-based extraction -#}
+{% macro evidence_based() %}
+EVIDENCE-BASED EXTRACTION:
+- Quote specific statements, code examples, or data from content
+- Link insights to source sections (e.g., "In Section 3, author demonstrates...")
+- Never hallucinate or add external knowledge not in content
+- If information is not present, explicitly state "Not found in provided sources"
+{% endmacro %}
+
+{#- Macro for JSON-only output -#}
+{% macro json_only() %}
+CRITICAL: Return ONLY valid JSON. No markdown code blocks, no explanations, no extra text.
+Your entire response must be parseable by JSON.parse().
+{% endmacro %}
+
+{#- ============================================================================= -#}
+{#- DEFAULT BLOCKS: Override in child templates -#}
+{#- ============================================================================= -#}
+
+{% block system_intro %}
+You are a helpful AI assistant.
+{% endblock %}
+
+{% block role_context %}
+{% endblock %}
+
+{% block constraints %}
+{% endblock %}
+
+{% block output_format %}
+{% endblock %}
+
+{% block examples %}
+{% endblock %}
+
+{% block final_instructions %}
+{% endblock %}

@@ -1,0 +1,27 @@
+{
+  "name": "prompt-engineering",
+  "version": "1.0.0",
+  "description": "Production prompt management with Nunjucks templates for LangChain.js",
+  "keywords": [
+    "prompt",
+    "template",
+    "jinja2",
+    "nunjucks",
+    "langchain",
+    "llm",
+    "ai"
+  ],
+  "references": {
+    "nunjucks-patterns": "references/nunjucks-patterns.md",
+    "langchain-integration": "references/langchain-integration.md"
+  },
+  "templates": {
+    "template-loader": "templates/template-loader.ts",
+    "base-template": "templates/base-template.njk",
+    "agent-prompt": "templates/agent-prompt.njk"
+  },
+  "examples": {
+    "rag-prompt": "examples/rag-prompt.njk",
+    "evaluator": "examples/evaluator.njk"
+  }
+}

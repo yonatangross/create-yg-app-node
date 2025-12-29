@@ -1,0 +1,63 @@
+{
+  "skill": "drizzle-production",
+  "version": "1.0.0",
+  "description": "Drizzle ORM 0.45 type-safe SQL patterns for PostgreSQL",
+  "capabilities": [
+    {
+      "id": "schema",
+      "name": "Schema Definition",
+      "keywords": ["schema", "table", "column", "index", "relation"],
+      "file": "references/schema.md",
+      "load_conditions": ["defining tables", "database schema", "relations"]
+    },
+    {
+      "id": "queries",
+      "name": "Query Patterns",
+      "keywords": ["select", "insert", "update", "delete", "query"],
+      "file": "references/queries.md",
+      "load_conditions": ["database queries", "CRUD operations"]
+    },
+    {
+      "id": "transactions",
+      "name": "Transactions",
+      "keywords": ["transaction", "tx", "rollback", "commit"],
+      "file": "references/transactions.md",
+      "load_conditions": ["transactions", "atomic operations"]
+    },
+    {
+      "id": "migrations",
+      "name": "Migrations",
+      "keywords": ["migration", "drizzle-kit", "generate", "push"],
+      "file": "references/migrations.md",
+      "load_conditions": ["schema changes", "migrations"]
+    },
+    {
+      "id": "performance",
+      "name": "Performance Optimization",
+      "keywords": ["prepare", "index", "pool", "cache"],
+      "file": "references/performance.md",
+      "load_conditions": ["performance", "optimization", "prepared statements"]
+    }
+  ],
+  "templates": [
+    {
+      "id": "schema-module",
+      "name": "Schema Module Template",
+      "file": "templates/schema-module.ts",
+      "description": "Database schema with relations and indexes"
+    },
+    {
+      "id": "repository",
+      "name": "Repository Pattern",
+      "file": "templates/repository.ts",
+      "description": "Type-safe repository with common operations"
+    }
+  ],
+  "checklists": [
+    {
+      "id": "migration-checklist",
+      "name": "Migration Safety Checklist",
+      "file": "checklists/migration.md"
+    }
+  ]
+}

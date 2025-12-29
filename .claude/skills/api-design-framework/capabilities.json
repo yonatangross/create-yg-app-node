@@ -1,0 +1,25 @@
+{
+  "skill": "api-design-framework",
+  "version": "1.0.0",
+  "description": "RESTful API design patterns with Hono and Zod",
+  "capabilities": [
+    {
+      "id": "rest-conventions",
+      "name": "REST Conventions",
+      "keywords": ["rest", "api", "endpoint", "http", "method"],
+      "load_conditions": ["designing APIs", "REST endpoints"]
+    },
+    {
+      "id": "validation",
+      "name": "Request Validation",
+      "keywords": ["zod", "validation", "schema", "input"],
+      "load_conditions": ["input validation", "schema definition"]
+    },
+    {
+      "id": "error-handling",
+      "name": "Error Response Patterns",
+      "keywords": ["error", "response", "status", "code"],
+      "load_conditions": ["error handling", "response formatting"]
+    }
+  ]
+}

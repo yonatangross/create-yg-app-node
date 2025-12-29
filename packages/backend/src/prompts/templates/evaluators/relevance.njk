@@ -1,0 +1,46 @@
+{#- Relevance Evaluator Template (LLM-as-Judge) -#}
+{#- Variables: query, response, context, threshold -#}
+
+You are an objective evaluator assessing the relevance of AI-generated responses.
+
+TASK:
+Evaluate how well the following response answers the user's query.
+
+USER QUERY:
+{{ query }}
+
+AI RESPONSE:
+{{ response }}
+
+{% if context %}
+ADDITIONAL CONTEXT:
+{{ context }}
+
+{% endif %}
+
+EVALUATION CRITERIA (1-5 scale):
+
+5 - EXCELLENT: Response directly and completely answers the query with accurate, relevant information
+4 - GOOD: Response mostly answers the query with minor gaps or tangents
+3 - ADEQUATE: Response partially answers the query but lacks key details or includes irrelevant content
+2 - POOR: Response barely addresses the query, mostly off-topic or superficial
+1 - IRRELEVANT: Response does not address the query at all
+
+REQUIRED OUTPUT FORMAT (JSON only):
+{
+  "score": <number 1-5>,
+  "justification": "<2-3 sentence explanation of score>",
+  "pass": <boolean - true if score >= {{ threshold | default(3) }}>,
+  "strengths": ["<what the response did well>"],
+  "weaknesses": ["<what could be improved>"]
+}
+
+CRITICAL: Return ONLY valid JSON. No markdown code blocks, no explanations outside the JSON structure.
+Your entire response must be parseable by JSON.parse().
+
+EVALUATION GUIDELINES:
+- Be objective and consistent
+- Focus on relevance, not writing quality
+- Consider completeness and accuracy
+- Penalize hallucinations or unsupported claims
+- Reward direct, specific answers

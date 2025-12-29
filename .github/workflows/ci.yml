@@ -29,6 +29,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Build shared package
+        run: pnpm --filter @yg-app/shared build
+
       - name: Format check
         run: pnpm run format:check
 
@@ -59,6 +62,9 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Build shared package
+        run: pnpm --filter @yg-app/shared build
 
       - name: Run tests
         run: pnpm run test:run

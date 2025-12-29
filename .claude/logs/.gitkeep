@@ -1,0 +1,5 @@
+# Log files are generated automatically
+# This directory contains:
+# - audit.log: All tool executions
+# - hooks.log: Hook execution log
+# - sessions/: Per-session archives

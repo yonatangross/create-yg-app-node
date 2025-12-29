@@ -1,0 +1,63 @@
+{
+  "skill": "react-19-patterns",
+  "version": "1.0.0",
+  "description": "React 19.2 patterns with new hooks and React Compiler",
+  "capabilities": [
+    {
+      "id": "forms",
+      "name": "Form Actions",
+      "keywords": ["form", "action", "useActionState", "useFormStatus", "submit"],
+      "file": "references/forms.md",
+      "load_conditions": ["form handling", "form submission", "form validation"]
+    },
+    {
+      "id": "optimistic",
+      "name": "Optimistic Updates",
+      "keywords": ["optimistic", "useOptimistic", "instant", "rollback"],
+      "file": "references/optimistic.md",
+      "load_conditions": ["optimistic UI", "instant feedback"]
+    },
+    {
+      "id": "suspense",
+      "name": "Suspense & use()",
+      "keywords": ["suspense", "use", "promise", "loading", "async"],
+      "file": "references/suspense.md",
+      "load_conditions": ["async data", "loading states", "Suspense"]
+    },
+    {
+      "id": "compiler",
+      "name": "React Compiler",
+      "keywords": ["compiler", "memoization", "performance", "automatic"],
+      "file": "references/compiler.md",
+      "load_conditions": ["performance optimization", "memoization"]
+    },
+    {
+      "id": "refs",
+      "name": "Ref Patterns",
+      "keywords": ["ref", "useRef", "forwardRef", "callback"],
+      "file": "references/refs.md",
+      "load_conditions": ["DOM access", "ref forwarding", "imperative handles"]
+    }
+  ],
+  "templates": [
+    {
+      "id": "form-component",
+      "name": "Form with Actions",
+      "file": "templates/form-component.tsx",
+      "description": "Form using useActionState and useFormStatus"
+    },
+    {
+      "id": "optimistic-list",
+      "name": "Optimistic List",
+      "file": "templates/optimistic-list.tsx",
+      "description": "List with optimistic add/remove"
+    }
+  ],
+  "checklists": [
+    {
+      "id": "migration-checklist",
+      "name": "React 19 Migration",
+      "file": "checklists/migration.md"
+    }
+  ]
+}

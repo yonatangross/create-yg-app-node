@@ -1,0 +1,64 @@
+{
+  "skill": "hono-patterns",
+  "version": "1.0.0",
+  "description": "Hono 4.11 Web Standards-first API patterns for Node.js",
+  "capabilities": [
+    {
+      "id": "routing",
+      "name": "Type-Safe Routing",
+      "keywords": ["route", "endpoint", "handler", "path", "method"],
+      "file": "references/routing.md",
+      "load_conditions": ["creating routes", "API endpoints", "handlers"]
+    },
+    {
+      "id": "middleware",
+      "name": "Middleware Composition",
+      "keywords": ["middleware", "cors", "auth", "logging", "rate-limit"],
+      "file": "references/middleware.md",
+      "load_conditions": ["adding middleware", "request processing"]
+    },
+    {
+      "id": "validation",
+      "name": "Zod Validation",
+      "keywords": ["zod", "validation", "schema", "zValidator"],
+      "file": "references/validation.md",
+      "load_conditions": ["input validation", "request validation"]
+    },
+    {
+      "id": "rpc",
+      "name": "RPC Client",
+      "keywords": ["client", "rpc", "hc", "type-safe", "frontend"],
+      "file": "references/rpc-client.md",
+      "load_conditions": ["frontend client", "API client", "type-safe fetch"]
+    },
+    {
+      "id": "streaming",
+      "name": "SSE Streaming",
+      "keywords": ["stream", "sse", "real-time", "events"],
+      "file": "references/streaming.md",
+      "load_conditions": ["streaming responses", "real-time", "SSE"]
+    },
+    {
+      "id": "openapi",
+      "name": "OpenAPI Integration",
+      "keywords": ["openapi", "swagger", "docs", "spec"],
+      "file": "references/openapi.md",
+      "load_conditions": ["API documentation", "OpenAPI spec"]
+    }
+  ],
+  "templates": [
+    {
+      "id": "api-module",
+      "name": "API Module Template",
+      "file": "templates/api-module.ts",
+      "description": "RESTful resource module with CRUD operations"
+    }
+  ],
+  "checklists": [
+    {
+      "id": "production-checklist",
+      "name": "Hono Production Readiness",
+      "file": "checklists/production.md"
+    }
+  ]
+}

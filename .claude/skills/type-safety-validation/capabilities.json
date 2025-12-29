@@ -1,0 +1,36 @@
+{
+  "skill": "type-safety-validation",
+  "version": "1.0.0",
+  "capabilities": [
+    {
+      "id": "zod-validation",
+      "name": "Zod Runtime Validation",
+      "keywords": ["zod", "validate", "schema", "parse"],
+      "description": "Runtime validation with Zod schemas and type inference"
+    },
+    {
+      "id": "exhaustive-types",
+      "name": "Exhaustive Type Checking",
+      "keywords": ["exhaustive", "switch", "assertNever", "union"],
+      "description": "Compile-time exhaustiveness checks with assertNever pattern"
+    },
+    {
+      "id": "branded-types",
+      "name": "Branded Types for IDs",
+      "keywords": ["branded", "id", "type-safe", "newtype"],
+      "description": "Prevent ID mixing with branded type patterns"
+    },
+    {
+      "id": "hono-validation",
+      "name": "Hono Zod Integration",
+      "keywords": ["hono", "zValidator", "api", "endpoint"],
+      "description": "Type-safe API validation with Hono and Zod"
+    },
+    {
+      "id": "drizzle-zod",
+      "name": "Drizzle Zod Integration",
+      "keywords": ["drizzle", "schema", "database", "orm"],
+      "description": "Auto-generate Zod schemas from Drizzle tables"
+    }
+  ]
+}

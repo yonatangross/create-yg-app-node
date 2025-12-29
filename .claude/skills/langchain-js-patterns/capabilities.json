@@ -1,0 +1,70 @@
+{
+  "skill": "langchain-js-patterns",
+  "version": "2.0.0",
+  "description": "LangChain.js 1.0 and LangGraph 1.0 patterns for production Node.js applications",
+  "capabilities": [
+    {
+      "id": "langgraph-agents",
+      "name": "LangGraph Agent Architecture",
+      "keywords": ["agent", "langgraph", "workflow", "state", "graph", "agentic"],
+      "file": "references/langgraph-1.0.md",
+      "load_conditions": ["building agents", "workflow orchestration", "multi-step AI tasks"]
+    },
+    {
+      "id": "rag-patterns",
+      "name": "RAG Implementation",
+      "keywords": ["rag", "retrieval", "vector", "embedding", "pgvector", "search"],
+      "file": "references/rag-patterns.md",
+      "load_conditions": ["knowledge base", "document search", "semantic search"]
+    },
+    {
+      "id": "streaming",
+      "name": "Streaming Responses",
+      "keywords": ["stream", "sse", "real-time", "chat"],
+      "file": "references/streaming.md",
+      "load_conditions": ["streaming output", "chat interface", "real-time responses"]
+    },
+    {
+      "id": "tool-calling",
+      "name": "Tool Calling Patterns",
+      "keywords": ["tool", "function", "calling", "structured"],
+      "file": "references/tool-calling.md",
+      "load_conditions": ["function calling", "tool use", "structured outputs"]
+    },
+    {
+      "id": "production-resilience",
+      "name": "Production Resilience",
+      "keywords": ["circuit", "cache", "retry", "fallback", "production"],
+      "file": "references/production.md",
+      "load_conditions": ["production deployment", "error handling", "reliability"]
+    }
+  ],
+  "templates": [
+    {
+      "id": "langgraph-agent",
+      "name": "LangGraph Agent Template",
+      "file": "templates/langgraph-agent.ts",
+      "description": "Production-ready LangGraph 1.0 agent with Annotation API"
+    },
+    {
+      "id": "rag-chain",
+      "name": "RAG Chain Template",
+      "file": "templates/rag-chain.ts",
+      "description": "RAG chain with pgvector and cached embeddings"
+    }
+  ],
+  "examples": [
+    {
+      "id": "chat-agent",
+      "name": "Chat Agent Example",
+      "file": "examples/chat-agent.ts"
+    }
+  ],
+  "checklists": [
+    {
+      "id": "production-checklist",
+      "name": "AI Production Readiness",
+      "file": "checklists/production.md"
+    }
+  ]
+}
