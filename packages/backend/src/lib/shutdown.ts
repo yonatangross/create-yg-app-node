@@ -1,4 +1,12 @@
-import { logger } from './logger.js';
+import { getLogger } from '../core/logger.js';
+import { shutdownLangfuse } from '../core/langfuse.js';
+import { shutdownEmbeddingsCache } from '../shared/embeddings.js';
+import { closeVectorStore } from '../shared/vector-store.js';
+import { closeCheckpointer } from '../shared/checkpointer.js';
+import { shutdownCircuitBreakers } from '../core/resilience.js';
+import { shutdownRateLimiter } from '../middleware/rate-limit.js';
+
+const logger = getLogger();
 
 interface ShutdownOptions {
   onShutdown?: () => Promise<void>;
@@ -48,7 +56,19 @@ export function gracefulShutdown(
         }
       });
 
-      // Run cleanup
+      // Cleanup AI/LLM services and resilience components
+      await Promise.allSettled([
+        shutdownLangfuse(5000),
+        shutdownEmbeddingsCache(),
+        closeVectorStore(),
+        closeCheckpointer(),
+        shutdownRateLimiter(),
+      ]);
+
+      // Cleanup circuit breakers (synchronous)
+      shutdownCircuitBreakers();
+
+      // Run custom cleanup
       if (onShutdown) {
         await onShutdown();
       }

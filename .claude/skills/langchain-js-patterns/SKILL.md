@@ -212,59 +212,142 @@ const result = await executor.invoke({
 });
 ```
 
-## LangGraph Workflows
+## LangGraph 1.0 Workflows (Dec 2025)
 
-### State Graph
+### Annotation API (CURRENT - replaces channels)
 ```typescript
-import { StateGraph, END } from '@langchain/langgraph';
-import { BaseMessage, HumanMessage, AIMessage } from '@langchain/core/messages';
+import { Annotation, StateGraph, END, START, MessagesAnnotation } from '@langchain/langgraph';
+import { HumanMessage, AIMessage } from '@langchain/core/messages';
+import type { RunnableConfig } from '@langchain/core/runnables';
 
-// Define state type
-interface AgentState {
-  messages: BaseMessage[];
-  context: string;
-  shouldContinue: boolean;
+/**
+ * Define state using Annotation.Root
+ *
+ * KEY PATTERNS:
+ * 1. Spread MessagesAnnotation.spec for messages (includes proper reducer)
+ * 2. Use Annotation<Type> directly for scalars (NO object form for simple values)
+ * 3. Use object form ONLY when you need a custom reducer or default
+ */
+const AgentState = Annotation.Root({
+  // ✅ Inherit messages with built-in reducer
+  ...MessagesAnnotation.spec,
+
+  // ✅ Scalar values - use Annotation<Type> directly (no object form)
+  userId: Annotation<string>,
+  sessionId: Annotation<string>,
+
+  // ✅ Use object form ONLY for custom reducer/default
+  sources: Annotation<Source[]>({
+    reducer: (_prev, next) => next, // Replace on each update
+    default: () => [],
+  }),
+});
+
+// Type inference works automatically
+export type AgentStateType = typeof AgentState.State;
+```
+
+### Node Functions with Proper Types
+```typescript
+/**
+ * Node functions receive state and optional config
+ * Return Partial<State> - only fields that changed
+ */
+async function agentNode(
+  state: typeof AgentState.State,
+  config?: RunnableConfig
+): Promise<Partial<typeof AgentState.State>> {
+  const model = getModel('agent');
+  const response = await model.invoke(state.messages, config);
+
+  return {
+    messages: [response], // Reducer handles merge
+  };
 }
 
-// Create graph
-const workflow = new StateGraph<AgentState>({
-  channels: {
-    messages: { default: () => [] },
-    context: { default: () => '' },
-    shouldContinue: { default: () => true },
-  },
-});
-
-// Add nodes
-workflow.addNode('agent', async (state) => {
-  const response = await model.invoke(state.messages);
-  return {
-    messages: [...state.messages, response],
-  };
-});
-
-workflow.addNode('tools', async (state) => {
+async function toolNode(
+  state: typeof AgentState.State,
+  _config?: RunnableConfig  // Prefix unused params with _
+): Promise<Partial<typeof AgentState.State>> {
   const lastMessage = state.messages[state.messages.length - 1];
   // Execute tool calls...
-  return { messages: [...state.messages, toolResult] };
-});
+  return { messages: [toolResult] };
+}
+```
 
-// Add edges
-workflow.setEntryPoint('agent');
-workflow.addConditionalEdges('agent', (state) => {
+### Graph Construction
+```typescript
+/**
+ * Build graph with proper edge definitions
+ *
+ * KEY: Use START constant, not '__start__' string
+ */
+const workflow = new StateGraph(AgentState)
+  .addNode('agent', agentNode)
+  .addNode('tools', toolNode)
+  .addEdge(START, 'agent')  // ✅ Use START constant
+  .addConditionalEdges('agent', shouldContinue, ['tools', END])
+  .addEdge('tools', 'agent');
+
+// Conditional routing function
+function shouldContinue(state: typeof AgentState.State): 'tools' | typeof END {
   const lastMessage = state.messages[state.messages.length - 1];
-  if (lastMessage.tool_calls?.length) {
+  if ('tool_calls' in lastMessage && lastMessage.tool_calls?.length) {
     return 'tools';
   }
   return END;
-});
-workflow.addEdge('tools', 'agent');
+}
 
-// Compile and run
-const app = workflow.compile();
-const result = await app.invoke({
-  messages: [new HumanMessage('Hello!')],
+// Compile with checkpointer for persistence
+const app = workflow.compile({
+  checkpointer, // PostgresSaver for durable execution
 });
+```
+
+### Invoke with Thread ID
+```typescript
+const result = await app.invoke(
+  {
+    messages: [new HumanMessage('Hello!')],
+    userId: 'user-123',
+    sessionId: 'session-456',
+  },
+  {
+    configurable: { thread_id: 'thread-789' }, // For persistence
+    callbacks: [langfuseHandler],
+  }
+);
+```
+
+### Type Augmentation Pattern
+```typescript
+/**
+ * When library types are incomplete, use declaration merging
+ * instead of 'as any' casts
+ */
+// types/langfuse.d.ts
+import '@langfuse/langchain';
+
+declare module '@langfuse/langchain' {
+  interface CallbackHandler {
+    traceId: string;
+    flushAsync(): Promise<void>;
+  }
+}
+
+// Usage - now properly typed
+const handler = createLangfuseHandler({ userId, sessionId });
+const traceId: string = handler.traceId; // No cast needed
+```
+
+### exactOptionalPropertyTypes Compliance
+```typescript
+// When strictest TypeScript is enabled, use explicit undefined
+interface QueryOutput {
+  response: string;
+  traceId: string | undefined;  // ✅ Not traceId?: string
+  sources: Source[];
+}
 ```
 
 ## Streaming

@@ -1,8 +1,18 @@
 import { z } from 'zod';
 import dotenv from 'dotenv';
+import pino from 'pino';
 
 // Load .env file
 dotenv.config();
+
+// Create a basic logger for config validation (before full logger is initialized)
+const configLogger = pino({
+  level: process.env.LOG_LEVEL || 'info',
+  transport: {
+    target: 'pino-pretty',
+    options: { colorize: true },
+  },
+});
 
 const envSchema = z.object({
   // Server
@@ -43,8 +53,7 @@ function loadConfig(): EnvConfig {
   const result = envSchema.safeParse(process.env);
 
   if (!result.success) {
-    console.error('❌ Invalid environment variables:');
-    console.error(result.error.flatten().fieldErrors);
+    configLogger.error({ errors: result.error.flatten().fieldErrors }, 'Invalid environment variables');
     process.exit(1);
   }
 

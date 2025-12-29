@@ -1,8 +1,32 @@
+/**
+ * Backend Server Entry Point
+ *
+ * Starts the Hono server and exports types for frontend RPC client.
+ */
+
 import { serve } from '@hono/node-server';
 import { app } from './app.js';
 import { config } from './config/env.js';
 import { logger } from './lib/logger.js';
 import { gracefulShutdown } from './lib/shutdown.js';
+
+// =============================================================================
+// Type Re-exports for Frontend
+// =============================================================================
+
+/**
+ * Re-export AppType for frontend consumption.
+ *
+ * Frontend can import:
+ * ```typescript
+ * import type { AppType } from '@yg-app/backend';
+ * ```
+ */
+export type { AppType } from './app.js';
+
+// =============================================================================
+// Server Startup
+// =============================================================================
 
 const server = serve(
   {
@@ -25,6 +49,7 @@ const server = serve(
 gracefulShutdown(server, {
   onShutdown: async () => {
     logger.info('Closing database connections...');
-    // Add database cleanup here
+    const { closeDb } = await import('./db/client.js');
+    await closeDb();
   },
 });

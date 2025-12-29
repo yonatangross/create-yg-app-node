@@ -24,31 +24,92 @@ Activates for: AI, LLM, LangChain, agent, RAG, embedding, prompt, GPT, Claude, v
 - pgvector for embeddings
 - Langfuse for observability (tracing, prompt management, evaluations)
 
-## LangGraph 1.0 Patterns (MANDATORY)
+## LangGraph 1.0 Patterns (MANDATORY - Dec 2025)
 
 ### Annotation API (replaces channels)
 ```typescript
-import { Annotation, StateGraph, END } from '@langchain/langgraph';
-import { BaseMessage } from '@langchain/core/messages';
+import { Annotation, StateGraph, END, START, MessagesAnnotation } from '@langchain/langgraph';
+import { HumanMessage, AIMessage } from '@langchain/core/messages';
+import type { RunnableConfig } from '@langchain/core/runnables';
 
+/**
+ * State definition using Annotation.Root
+ *
+ * CRITICAL PATTERNS:
+ * 1. Spread MessagesAnnotation.spec for messages (DO NOT redefine reducer)
+ * 2. Scalar values: Annotation<Type> directly (NO object form)
+ * 3. Object form ONLY for custom reducer/default on arrays/complex types
+ */
 const AgentState = Annotation.Root({
-  messages: Annotation<BaseMessage[]>({
-    reducer: (prev, next) => [...prev, ...next],
+  // ✅ Inherit messages with built-in reducer (handles message appending)
+  ...MessagesAnnotation.spec,
+
+  // ✅ Scalar values - NO object form needed
+  userId: Annotation<string>,
+  sessionId: Annotation<string>,
+  persona: Annotation<string>,
+
+  // ✅ Object form ONLY when custom reducer/default needed
+  sources: Annotation<Source[]>({
+    reducer: (_prev, next) => next, // Replace, don't merge
     default: () => [],
-  }),
-  context: Annotation<string>({
-    default: () => '',
   }),
 });
 
+// Type inference
+export type AgentStateType = typeof AgentState.State;
+
+// Node function with proper typing
+async function agentNode(
+  state: typeof AgentState.State,
+  config?: RunnableConfig
+): Promise<Partial<typeof AgentState.State>> {
+  const response = await model.invoke(state.messages, config);
+  return { messages: [response] }; // Reducer handles merge
+}
+
+// Graph construction - USE START CONSTANT
 const workflow = new StateGraph(AgentState)
   .addNode('agent', agentNode)
   .addNode('tools', toolNode)
-  .addEdge('__start__', 'agent')
+  .addEdge(START, 'agent')  // ✅ START constant, not '__start__' string
   .addConditionalEdges('agent', shouldContinue, ['tools', END])
   .addEdge('tools', 'agent');
 
-const app = workflow.compile();
+// Compile with checkpointer
+const app = workflow.compile({ checkpointer });
+```
+
+### Type Safety (NO 'as any' casts)
+```typescript
+// ❌ WRONG - Using 'as any' to silence types
+const traceId = (handler as any).traceId;
+
+// ✅ CORRECT - Type augmentation via declaration merging
+// Create: types/langfuse.d.ts
+import '@langfuse/langchain';
+declare module '@langfuse/langchain' {
+  interface CallbackHandler {
+    traceId: string;
+    flushAsync(): Promise<void>;
+  }
+}
+
+// Usage - properly typed
+const traceId: string = handler.traceId;
+```
+
+### exactOptionalPropertyTypes Compliance
+```typescript
+// ❌ WRONG with strictest TS
+interface Output {
+  traceId?: string;  // Error with exactOptionalPropertyTypes
+}
+
+// ✅ CORRECT - explicit undefined
+interface Output {
+  traceId: string | undefined;
+}
 ```
 
 ### Tool Definition

@@ -1,0 +1,46 @@
+{% extends "_base.njk" %}
+
+{#- Chat Agent Template -#}
+{#- Variables: persona, context, constraints, skill_level, output_format, tools -#}
+
+{% block system_intro %}
+You are {{ persona }}.
+{% endblock %}
+
+{% block role_context %}
+{{ context_block(context, "CURRENT CONTEXT") }}
+{% endblock %}
+
+{% block constraints %}
+{{ constraints_block(constraints) }}
+{% if skill_level %}
+{{ skill_adaptation(skill_level) }}
+{% endif %}
+{% endblock %}
+
+{% block output_format %}
+{% if output_format == 'json' %}
+{{ json_only() }}
+{{ single_response() }}
+{% endif %}
+{% endblock %}
+
+{% block final_instructions %}
+{% if tools and tools | length > 0 %}
+AVAILABLE TOOLS:
+{% for tool in tools %}
+- {{ tool }}
+{% endfor %}
+
+TOOL USAGE:
+- Use tools when they can provide accurate, real-time information
+- Prefer tools over relying on training data for current facts
+- Always explain which tool you used and why
+{% endif %}
+
+RESPONSE GUIDELINES:
+- Be helpful, accurate, and concise
+- Cite sources when making factual claims
+- Admit uncertainty rather than guessing
+- Ask clarifying questions if the request is ambiguous
+{% endblock %}
