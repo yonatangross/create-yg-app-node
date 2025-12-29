@@ -1,0 +1,51 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Agent Registry",
+  "description": "Schema for validating agent definitions in .claude/agents/",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Agent name identifier"
+    },
+    "description": {
+      "type": "string",
+      "description": "What this agent specializes in"
+    },
+    "capabilities": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "List of capabilities this agent has"
+    },
+    "model": {
+      "type": "string",
+      "enum": ["opus", "sonnet", "haiku"],
+      "default": "sonnet",
+      "description": "Preferred model for this agent"
+    },
+    "tools": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Tools this agent can use"
+    },
+    "allowed_paths": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Paths this agent can read/write"
+    },
+    "forbidden_paths": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Paths this agent cannot access"
+    }
+  },
+  "required": ["name", "description"]
+}

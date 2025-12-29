@@ -76,8 +76,7 @@ export class ResilienceManager {
           config.circuitBreaker?.resetTimeoutMs ??
           appConfig.CIRCUIT_BREAKER_RESET_TIMEOUT,
         timeoutMs:
-          config.circuitBreaker?.timeoutMs ??
-          appConfig.CIRCUIT_BREAKER_TIMEOUT,
+          config.circuitBreaker?.timeoutMs ?? appConfig.CIRCUIT_BREAKER_TIMEOUT,
       };
 
       this.circuitBreaker = new CircuitBreaker(cbConfig);
@@ -184,10 +183,7 @@ class ResilienceRegistry {
   /**
    * Get or create a named resilience manager
    */
-  getOrCreate(
-    name: string,
-    config?: ResilienceConfig
-  ): ResilienceManager {
+  getOrCreate(name: string, config?: ResilienceConfig): ResilienceManager {
     let manager = this.managers.get(name);
 
     if (!manager) {

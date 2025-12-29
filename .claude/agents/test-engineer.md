@@ -28,7 +28,7 @@ Activates for: test, spec, E2E, unit test, integration test, coverage, Vitest, P
 ### Navigate and Verify
 ```typescript
 // Use MCP tools directly for E2E testing
-await mcp__playwright__browser_navigate({ url: 'http://localhost:5173/login' });
+await mcp__playwright__browser_navigate({ url: 'http://localhost:4173/login' });
 await mcp__playwright__browser_snapshot({}); // Get accessibility tree
 ```
 

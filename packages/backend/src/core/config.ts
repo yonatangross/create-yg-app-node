@@ -16,7 +16,7 @@ const envSchema = z.object({
   NODE_ENV: z
     .enum(['development', 'production', 'test'])
     .default('development'),
-  PORT: z.coerce.number().default(3000),
+  PORT: z.coerce.number().default(4000),
   VERSION: z.string().default('1.0.0'),
   LOG_LEVEL: z
     .enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal'])
@@ -26,14 +26,14 @@ const envSchema = z.object({
   DATABASE_URL: z
     .string()
     .url()
-    .default('postgresql://postgres:postgres@localhost:5432/yg_app'),
+    .default('postgresql://postgres:postgres@localhost:5433/yg_app_node'),
   DATABASE_POOL_MAX: z.coerce.number().default(20),
   DATABASE_POOL_MIN: z.coerce.number().default(2),
   DATABASE_IDLE_TIMEOUT: z.coerce.number().default(30000), // 30s
   DATABASE_CONNECT_TIMEOUT: z.coerce.number().default(10000), // 10s
 
   // Redis
-  REDIS_URL: z.string().url().default('redis://localhost:6379'),
+  REDIS_URL: z.string().url().default('redis://localhost:6380'),
   REDIS_MAX_RETRIES: z.coerce.number().default(3),
   REDIS_CONNECT_TIMEOUT: z.coerce.number().default(10000), // 10s
 
@@ -47,10 +47,13 @@ const envSchema = z.object({
   LANGFUSE_HOST: z.string().url().optional(),
 
   // Security
-  JWT_SECRET: z.string().min(32).default('change-this-in-production-minimum-32-chars'),
+  JWT_SECRET: z
+    .string()
+    .min(32)
+    .default('change-this-in-production-minimum-32-chars'),
   CORS_ORIGINS: z
     .string()
-    .default('http://localhost:5173,http://localhost:3000'),
+    .default('http://localhost:4173,http://localhost:4000'),
 
   // Resilience
   CIRCUIT_BREAKER_TIMEOUT: z.coerce.number().default(3000), // 3s
@@ -88,9 +91,7 @@ export function getConfig(): Config {
       .map(([field, messages]) => `  ${field}: ${messages?.join(', ')}`)
       .join('\n');
 
-    throw new Error(
-      `Invalid environment configuration:\n${errorMessages}`
-    );
+    throw new Error(`Invalid environment configuration:\n${errorMessages}`);
   }
 
   cachedConfig = result.data;
@@ -125,3 +126,9 @@ export function isDevelopment(): boolean {
 export function resetConfig(): void {
   cachedConfig = null;
 }
+
+/**
+ * Backward-compatible config export
+ * Prefer using getConfig() for lazy initialization in most cases
+ */
+export const config = getConfig();

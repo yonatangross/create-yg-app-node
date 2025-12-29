@@ -117,7 +117,10 @@ export async function closeCheckpointer(): Promise<void> {
  * @param threadId - Thread ID to clear
  */
 export async function clearThreadCheckpoints(threadId: string): Promise<void> {
-  logger.warn({ threadId }, 'clearThreadCheckpoints not implemented - use SQL if needed');
+  logger.warn(
+    { threadId },
+    'clearThreadCheckpoints not implemented - use SQL if needed'
+  );
   // PostgresSaver doesn't expose delete in current API
   // Would need direct SQL: DELETE FROM checkpoints WHERE thread_id = $1
 }

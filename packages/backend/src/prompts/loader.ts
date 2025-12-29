@@ -43,7 +43,10 @@ function getEnv(): nunjucks.Environment {
     env.addFilter('oneline', (str: string) => str.replace(/\n/g, ' ').trim());
     env.addFilter('quote', (str: string) => `"${str}"`);
 
-    logger.info({ templatesDir: TEMPLATES_DIR }, 'Nunjucks environment initialized');
+    logger.info(
+      { templatesDir: TEMPLATES_DIR },
+      'Nunjucks environment initialized'
+    );
   }
 
   return env;
@@ -100,7 +103,9 @@ export function renderPrompt<T extends Record<string, unknown>>(
 
     // Re-throw with more context
     if (error instanceof Error) {
-      throw new Error(`Failed to render template ${templatePath}: ${error.message}`);
+      throw new Error(
+        `Failed to render template ${templatePath}: ${error.message}`
+      );
     }
     throw error;
   }
@@ -118,7 +123,10 @@ export function getTemplateRaw(templatePath: TemplatePath | string): string {
     // Access internal template source (not in types but exists at runtime)
     return (template as unknown as { tmplStr?: string }).tmplStr || '';
   } catch (error) {
-    logger.error({ template: templatePath, error }, 'Failed to get raw template');
+    logger.error(
+      { template: templatePath, error },
+      'Failed to get raw template'
+    );
     throw error;
   }
 }
@@ -134,7 +142,9 @@ export function validateVariables<T extends Record<string, unknown>>(
   const missing = required.filter((key) => !(key in provided));
 
   if (missing.length > 0) {
-    throw new Error(`Missing required template variables: ${missing.join(', ')}`);
+    throw new Error(
+      `Missing required template variables: ${missing.join(', ')}`
+    );
   }
 }
 
@@ -154,7 +164,12 @@ export interface ChatAgentVariables extends Record<string, unknown> {
 export interface RAGAgentVariables extends Record<string, unknown> {
   query: string;
   context: string;
-  sources: Array<{ id: string; title: string; content: string; score?: number }>;
+  sources: Array<{
+    id: string;
+    title: string;
+    content: string;
+    score?: number;
+  }>;
   max_sources?: number;
   require_citations?: boolean;
 }
@@ -189,7 +204,9 @@ export function renderRAGAgent(variables: RAGAgentVariables): string {
 /**
  * Render relevance evaluator prompt with type safety
  */
-export function renderRelevanceEvaluator(variables: RelevanceEvaluatorVariables): string {
+export function renderRelevanceEvaluator(
+  variables: RelevanceEvaluatorVariables
+): string {
   validateVariables(['query', 'response'], variables);
   return renderPrompt('evaluators/relevance.njk', variables);
 }

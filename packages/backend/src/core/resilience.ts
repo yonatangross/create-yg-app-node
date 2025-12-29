@@ -119,6 +119,7 @@ export function getCircuitBreaker<TArgs extends unknown[], TResult>(
   // Note: Circuit breaker needs a function to wrap, but we'll provide that when calling .fire()
   const breaker = new CircuitBreaker<TArgs, TResult>(
     // Dummy function - actual function is passed to .fire()
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     async (..._args: TArgs): Promise<TResult> => {
       throw new Error('Circuit breaker not initialized with function');
     },
@@ -138,11 +139,17 @@ export function getCircuitBreaker<TArgs extends unknown[], TResult>(
   });
 
   breaker.on('halfOpen', () => {
-    logger.info({ service: breakerKey, state: 'half-open' }, 'Circuit breaker half-open - testing');
+    logger.info(
+      { service: breakerKey, state: 'half-open' },
+      'Circuit breaker half-open - testing'
+    );
   });
 
   breaker.on('close', () => {
-    logger.info({ service: breakerKey, state: 'closed' }, 'Circuit breaker closed - service healthy');
+    logger.info(
+      { service: breakerKey, state: 'closed' },
+      'Circuit breaker closed - service healthy'
+    );
   });
 
   breaker.on('failure', (error: Error) => {
@@ -157,15 +164,24 @@ export function getCircuitBreaker<TArgs extends unknown[], TResult>(
   });
 
   breaker.on('timeout', () => {
-    logger.warn({ service: breakerKey, timeout: config.timeout }, 'Circuit breaker timeout');
+    logger.warn(
+      { service: breakerKey, timeout: config.timeout },
+      'Circuit breaker timeout'
+    );
   });
 
   breaker.on('reject', () => {
-    logger.warn({ service: breakerKey }, 'Circuit breaker rejected request - circuit is open');
+    logger.warn(
+      { service: breakerKey },
+      'Circuit breaker rejected request - circuit is open'
+    );
   });
 
   breaker.on('fallback', (result: unknown) => {
-    logger.info({ service: breakerKey, result }, 'Circuit breaker fallback executed');
+    logger.info(
+      { service: breakerKey, result },
+      'Circuit breaker fallback executed'
+    );
   });
 
   breakerRegistry.set(breakerKey, breaker as CircuitBreaker);
@@ -226,7 +242,10 @@ export function withCircuitBreaker<TArgs extends unknown[], TResult>(
     });
 
     executionBreaker.on('timeout', () => {
-      logger.warn({ service: `${serviceType}:${serviceName}` }, 'Circuit breaker timeout');
+      logger.warn(
+        { service: `${serviceType}:${serviceName}` },
+        'Circuit breaker timeout'
+      );
     });
 
     return executionBreaker.fire(...args);
@@ -296,11 +315,17 @@ export function resetCircuitBreaker(
  *
  * @returns Map of service names to states
  */
-export function getAllCircuitStates(): Map<string, {
-  state: CircuitState;
-  stats: CircuitBreaker['stats'];
-}> {
-  const states = new Map<string, { state: CircuitState; stats: CircuitBreaker['stats'] }>();
+export function getAllCircuitStates(): Map<
+  string,
+  {
+    state: CircuitState;
+    stats: CircuitBreaker['stats'];
+  }
+> {
+  const states = new Map<
+    string,
+    { state: CircuitState; stats: CircuitBreaker['stats'] }
+  >();
 
   breakerRegistry.forEach((breaker, key) => {
     let state: CircuitState = 'closed';
@@ -393,6 +418,9 @@ export function getCircuitBreakerHealth(): {
  * Shutdown all circuit breakers
  */
 export function shutdownCircuitBreakers(): void {
-  logger.info({ count: breakerRegistry.size }, 'Shutting down circuit breakers');
+  logger.info(
+    { count: breakerRegistry.size },
+    'Shutting down circuit breakers'
+  );
   breakerRegistry.clear();
 }

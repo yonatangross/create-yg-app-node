@@ -2,13 +2,17 @@
  * Document Repository Implementation
  *
  * Implements IDocumentRepository with pgvector similarity search
- * Follows SkillForge patterns with type-safe database operations
+ * Provides type-safe CRUD operations and vector similarity queries
  */
 
 import { eq, desc, count, sql, SQL } from 'drizzle-orm';
 import { getDb, getSqlClient } from '../client.js';
 import { documents } from '../schema/index.js';
-import type { Document, NewDocument, DocumentWithScore } from '../schema/index.js';
+import type {
+  Document,
+  NewDocument,
+  DocumentWithScore,
+} from '../schema/index.js';
 import type { IDocumentRepository } from './interfaces.js';
 import { logger } from '../../lib/logger.js';
 
@@ -178,7 +182,9 @@ export class DocumentRepository implements IDocumentRepository {
       const conditions: SQL[] = [];
 
       // Add similarity threshold
-      conditions.push(sql`1 - (embedding <=> ${embeddingStr}::vector) >= ${threshold}`);
+      conditions.push(
+        sql`1 - (embedding <=> ${embeddingStr}::vector) >= ${threshold}`
+      );
 
       // Add user filter if provided
       if (userId) {
@@ -213,10 +219,7 @@ export class DocumentRepository implements IDocumentRepository {
       // Type assertion is safe here because we control the query structure
       return results as unknown as DocumentWithScore[];
     } catch (error) {
-      logger.error(
-        { error, params },
-        'Failed to perform similarity search'
-      );
+      logger.error({ error, params }, 'Failed to perform similarity search');
       throw error;
     }
   }
@@ -230,14 +233,14 @@ export class DocumentRepository implements IDocumentRepository {
 
       const inserted = await db.insert(documents).values(docs).returning();
 
-      logger.info(
-        { count: inserted.length },
-        'Batch documents created'
-      );
+      logger.info({ count: inserted.length }, 'Batch documents created');
 
       return inserted;
     } catch (error) {
-      logger.error({ error, count: docs.length }, 'Failed to batch create documents');
+      logger.error(
+        { error, count: docs.length },
+        'Failed to batch create documents'
+      );
       throw error;
     }
   }

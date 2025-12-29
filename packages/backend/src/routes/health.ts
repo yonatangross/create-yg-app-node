@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { config } from '../config/env.js';
+import { config } from '../core/config.js';
 import type { AppEnv } from '../types.js';
 import type { HealthCheck } from '@yg-app/shared';
 import { getCircuitBreakerHealth } from '../core/resilience.js';

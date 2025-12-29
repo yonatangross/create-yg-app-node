@@ -6,7 +6,7 @@
 
 import { serve } from '@hono/node-server';
 import { app } from './app.js';
-import { config } from './config/env.js';
+import { config } from './core/config.js';
 import { logger } from './lib/logger.js';
 import { gracefulShutdown } from './lib/shutdown.js';
 

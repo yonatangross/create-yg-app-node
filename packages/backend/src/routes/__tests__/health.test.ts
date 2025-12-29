@@ -5,6 +5,29 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { app } from '../../app.js';
 
+// Type definitions for health check responses
+interface HealthResponse {
+  success: boolean;
+  data: {
+    status: 'healthy' | 'degraded';
+    version: string;
+    timestamp: string;
+    services: {
+      api: { status: string };
+      database: { status: string };
+    };
+  };
+}
+
+interface LiveResponse {
+  status: 'ok';
+}
+
+interface ReadyResponse {
+  status: 'ready' | 'not ready';
+  database: 'connected' | 'disconnected';
+}
+
 // Mock database client
 vi.mock('../../db/client.js', () => ({
   checkDbHealth: vi.fn(),
@@ -23,7 +46,7 @@ describe('Health Routes', () => {
       const res = await app.request('/health');
 
       expect(res.status).toBe(200);
-      const body = await res.json();
+      const body = (await res.json()) as HealthResponse;
 
       expect(body).toMatchObject({
         success: true,
@@ -47,7 +70,7 @@ describe('Health Routes', () => {
       const res = await app.request('/health');
 
       expect(res.status).toBe(200);
-      const body = await res.json();
+      const body = (await res.json()) as HealthResponse;
 
       expect(body).toMatchObject({
         success: true,
@@ -66,7 +89,7 @@ describe('Health Routes', () => {
       vi.mocked(checkDbHealth).mockResolvedValue(true);
 
       const res = await app.request('/health');
-      const body = await res.json();
+      const body = (await res.json()) as HealthResponse;
 
       expect(body.data.version).toMatch(/^\d+\.\d+\.\d+/); // Semver format
       expect(new Date(body.data.timestamp).getTime()).toBeLessThanOrEqual(
@@ -80,7 +103,7 @@ describe('Health Routes', () => {
       const res = await app.request('/health/live');
 
       expect(res.status).toBe(200);
-      const body = await res.json();
+      const body = (await res.json()) as LiveResponse;
 
       expect(body).toEqual({ status: 'ok' });
     });
@@ -102,7 +125,7 @@ describe('Health Routes', () => {
       const res = await app.request('/health/ready');
 
       expect(res.status).toBe(200);
-      const body = await res.json();
+      const body = (await res.json()) as ReadyResponse;
 
       expect(body).toEqual({
         status: 'ready',
@@ -117,7 +140,7 @@ describe('Health Routes', () => {
       const res = await app.request('/health/ready');
 
       expect(res.status).toBe(503);
-      const body = await res.json();
+      const body = (await res.json()) as ReadyResponse;
 
       expect(body).toEqual({
         status: 'not ready',

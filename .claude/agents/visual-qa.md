@@ -28,7 +28,7 @@ const context = await mcp__claude-in-chrome__tabs_context_mcp({ createIfEmpty: t
 const tab = await mcp__claude-in-chrome__tabs_create_mcp({});
 
 // Navigate to app
-await mcp__claude-in-chrome__navigate({ url: 'http://localhost:5173', tabId: tab.id });
+await mcp__claude-in-chrome__navigate({ url: 'http://localhost:4173', tabId: tab.id });
 ```
 
 ### Read Page for Verification

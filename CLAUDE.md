@@ -16,7 +16,7 @@ Production-ready starter template for full-stack Node.js applications with AI ca
 
 **Stack**: React 19 + Hono + LangChain.js + PostgreSQL/pgvector + Langfuse
 
-**Ports**: Frontend `5173` | Backend `3000` | Postgres `5432` | Redis `6379` | Langfuse `3010`
+**Ports**: Frontend `4173` | Backend `4000` | Postgres `5433` | Redis `6380` | Langfuse `3001`
 
 ## HOW
 
@@ -213,7 +213,7 @@ Copy `.env.example` to `.env`:
 
 ```bash
 NODE_ENV=development
-PORT=3000
+PORT=4000
 DATABASE_URL=postgresql://...
 REDIS_URL=redis://...
 OPENAI_API_KEY=sk-...

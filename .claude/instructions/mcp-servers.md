@@ -103,10 +103,10 @@ Set these in `.mcp.env` (gitignored):
 
 ```bash
 # PostgreSQL
-POSTGRES_CONNECTION_STRING=postgresql://dev:password@localhost:5432/yg-node
+POSTGRES_CONNECTION_STRING=postgresql://postgres:postgres@localhost:5433/yg_app_node
 
 # Langfuse
-LANGFUSE_MCP_URL=http://localhost:3010/api/public/mcp
+LANGFUSE_MCP_URL=http://localhost:3001/api/public/mcp
 LANGFUSE_MCP_AUTH=<base64-encoded-credentials>
 ```
 

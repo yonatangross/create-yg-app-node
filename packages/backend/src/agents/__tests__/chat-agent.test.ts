@@ -71,14 +71,20 @@ describe('Chat Agent', () => {
     vi.clearAllMocks();
 
     // Setup mock model with all required LangChain methods
-    const mockInvoke = vi.fn(async () => new AIMessage({
-      content: 'Mock response',
-      tool_calls: [],
-    }));
+    const mockInvoke = vi.fn(
+      async () =>
+        new AIMessage({
+          content: 'Mock response',
+          tool_calls: [],
+        })
+    );
 
     const mockStream = vi.fn(async function* () {
       yield {
-        messages: [new HumanMessage('input'), new AIMessage('Mock stream response')],
+        messages: [
+          new HumanMessage('input'),
+          new AIMessage('Mock stream response'),
+        ],
         userId: 'user-123',
         sessionId: 'session-456',
         persona: 'assistant',
@@ -93,6 +99,8 @@ describe('Chat Agent', () => {
       return this;
     });
 
+    // Create mock model - only include properties needed for testing
+    // Note: We use 'as BaseChatModel' since mocks don't need full implementation
     mockModel = {
       invoke: mockInvoke,
       stream: mockStream,
@@ -100,7 +108,7 @@ describe('Chat Agent', () => {
       bind: mockBind,
       lc_namespace: ['langchain', 'chat_models'],
       lc_serializable: true,
-    };
+    } as unknown as Partial<BaseChatModel>;
 
     // Setup mock checkpointer with all required PostgresSaver methods
     mockCheckpointer = {
@@ -116,10 +124,14 @@ describe('Chat Agent', () => {
       flushAsync: vi.fn().mockResolvedValue(undefined),
     };
 
-    // Configure mocks
+    // Configure mocks - use type assertions for complex LangChain types
     vi.mocked(getResilientModel).mockReturnValue(mockModel as BaseChatModel);
-    vi.mocked(getOrInitCheckpointer).mockResolvedValue(mockCheckpointer);
-    vi.mocked(createLangfuseHandler).mockReturnValue(mockLangfuseHandler);
+    vi.mocked(getOrInitCheckpointer).mockResolvedValue(
+      mockCheckpointer as Awaited<ReturnType<typeof getOrInitCheckpointer>>
+    );
+    vi.mocked(createLangfuseHandler).mockReturnValue(
+      mockLangfuseHandler as ReturnType<typeof createLangfuseHandler>
+    );
     vi.mocked(renderChatAgent).mockReturnValue('System prompt');
   });
 
@@ -221,7 +233,7 @@ describe('Chat Agent', () => {
 
       try {
         await chat(mockInput);
-      } catch (error) {
+      } catch {
         // Even if execution fails, handler should have been called
         expect(createLangfuseHandler).toHaveBeenCalled();
       }

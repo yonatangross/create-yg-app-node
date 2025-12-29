@@ -2,8 +2,37 @@
  * Integration tests for chat and RAG routes
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { app } from '../../app.js';
+
+// Type definitions for API responses
+interface ChatResponse {
+  success: boolean;
+  data: {
+    response: string;
+    toolsUsed: string[];
+    traceId: string;
+    threadId: string;
+  };
+  error?: { code: string; message: string };
+}
+
+interface RAGResponse {
+  success: boolean;
+  data: {
+    response: string;
+    sources: Array<{ id: string; title: string; score: number }>;
+    usedFallback: boolean;
+    traceId: string;
+    threadId: string;
+  };
+  error?: { code: string; message: string };
+}
+
+interface ErrorResponse {
+  success: false;
+  error: { code: string; message: string };
+}
 
 // Mock chat agent
 vi.mock('../../agents/chat-agent.js', () => ({
@@ -41,7 +70,7 @@ describe('Chat Routes', () => {
       });
 
       expect(res.status).toBe(200);
-      const body = await res.json();
+      const body = (await res.json()) as ChatResponse;
 
       expect(body.success).toBe(true);
       expect(body.data).toMatchObject({
@@ -71,7 +100,7 @@ describe('Chat Routes', () => {
       });
 
       expect(res.status).toBe(200);
-      const body = await res.json();
+      const body = (await res.json()) as ChatResponse;
 
       expect(body.data.threadId).toBe(threadId);
       expect(chat).toHaveBeenCalledWith(
@@ -117,7 +146,7 @@ describe('Chat Routes', () => {
       });
 
       expect(res.status).toBe(400);
-      const body = await res.json();
+      const body = (await res.json()) as ErrorResponse;
       expect(body.success).toBe(false);
     });
 
@@ -174,7 +203,7 @@ describe('Chat Routes', () => {
       });
 
       expect(res.status).toBe(500);
-      const body = await res.json();
+      const body = (await res.json()) as ErrorResponse;
 
       expect(body.success).toBe(false);
       expect(body.error).toMatchObject({
@@ -188,12 +217,16 @@ describe('Chat Routes', () => {
     it('should stream chat responses via SSE', async () => {
       const { chatStream } = await import('../../agents/chat-agent.js');
 
-      // Mock async generator
+      // Mock async generator with literal types using 'as const'
       const mockGenerator = async function* () {
-        yield { type: 'start', content: 'Starting...', traceId: 'trace-1' };
-        yield { type: 'token', content: 'Hello', traceId: 'trace-1' };
-        yield { type: 'token', content: ' world', traceId: 'trace-1' };
-        yield { type: 'end', content: 'Done', traceId: 'trace-1' };
+        yield {
+          type: 'token' as const,
+          content: 'Starting...',
+          traceId: 'trace-1',
+        };
+        yield { type: 'token' as const, content: 'Hello', traceId: 'trace-1' };
+        yield { type: 'token' as const, content: ' world', traceId: 'trace-1' };
+        yield { type: 'done' as const, content: 'Done', traceId: 'trace-1' };
       };
       vi.mocked(chatStream).mockReturnValue(mockGenerator());
 
@@ -204,9 +237,8 @@ describe('Chat Routes', () => {
 
       // Read stream
       const text = await res.text();
-      expect(text).toContain('event: start');
       expect(text).toContain('event: token');
-      expect(text).toContain('event: end');
+      expect(text).toContain('event: done');
       expect(text).toContain('Starting...');
       expect(text).toContain('Hello');
       expect(text).toContain(' world');
@@ -215,7 +247,7 @@ describe('Chat Routes', () => {
     it('should use query parameters for stream', async () => {
       const { chatStream } = await import('../../agents/chat-agent.js');
       const mockGenerator = async function* () {
-        yield { type: 'end', content: 'Done', traceId: 'trace-2' };
+        yield { type: 'done' as const, content: 'Done', traceId: 'trace-2' };
       };
       vi.mocked(chatStream).mockReturnValue(mockGenerator());
 
@@ -250,7 +282,11 @@ describe('Chat Routes', () => {
     it('should send error event on stream failure', async () => {
       const { chatStream } = await import('../../agents/chat-agent.js');
       const mockGenerator = async function* () {
-        yield { type: 'start', content: 'Starting...', traceId: 'trace-3' };
+        yield {
+          type: 'token' as const,
+          content: 'Starting...',
+          traceId: 'trace-3',
+        };
         throw new Error('Stream error');
       };
       vi.mocked(chatStream).mockReturnValue(mockGenerator());
@@ -275,8 +311,20 @@ describe('RAG Routes', () => {
       const mockResponse = {
         response: 'Based on the documents...',
         sources: [
-          { id: 'doc-1', title: 'Document 1', score: 0.95 },
-          { id: 'doc-2', title: 'Document 2', score: 0.87 },
+          {
+            id: 'doc-1',
+            title: 'Document 1',
+            content: 'Document 1 content',
+            score: 0.95,
+            metadata: {},
+          },
+          {
+            id: 'doc-2',
+            title: 'Document 2',
+            content: 'Document 2 content',
+            score: 0.87,
+            metadata: {},
+          },
         ],
         usedFallback: false,
         traceId: 'rag-trace-123',
@@ -292,17 +340,19 @@ describe('RAG Routes', () => {
       });
 
       expect(res.status).toBe(200);
-      const body = await res.json();
+      const body = (await res.json()) as RAGResponse;
 
       expect(body.success).toBe(true);
       expect(body.data).toMatchObject({
         response: 'Based on the documents...',
-        sources: [
-          { id: 'doc-1', title: 'Document 1', score: 0.95 },
-          { id: 'doc-2', title: 'Document 2', score: 0.87 },
-        ],
         usedFallback: false,
         traceId: 'rag-trace-123',
+      });
+      expect(body.data.sources).toHaveLength(2);
+      expect(body.data.sources[0]).toMatchObject({
+        id: 'doc-1',
+        title: 'Document 1',
+        score: 0.95,
       });
       expect(body.data.threadId).toMatch(/^[0-9a-f-]{36}$/);
     });
@@ -434,7 +484,7 @@ describe('RAG Routes', () => {
       });
 
       expect(res.status).toBe(500);
-      const body = await res.json();
+      const body = (await res.json()) as ErrorResponse;
 
       expect(body.success).toBe(false);
       expect(body.error).toMatchObject({
@@ -448,11 +498,30 @@ describe('RAG Routes', () => {
     it('should stream RAG responses via SSE', async () => {
       const { ragQueryStream } = await import('../../agents/rag-agent.js');
 
+      // Mock async generator with literal types using 'as const'
       const mockGenerator = async function* () {
-        yield { type: 'sources', content: 'Found 2 sources', traceId: 'trace-1' };
-        yield { type: 'token', content: 'Based on', traceId: 'trace-1' };
-        yield { type: 'token', content: ' the documents', traceId: 'trace-1' };
-        yield { type: 'end', content: 'Done', traceId: 'trace-1' };
+        yield {
+          type: 'sources' as const,
+          content: [] as Array<{
+            id: string;
+            title: string;
+            content: string;
+            score: number;
+            metadata: Record<string, unknown>;
+          }>,
+          traceId: 'trace-1',
+        };
+        yield {
+          type: 'token' as const,
+          content: 'Based on',
+          traceId: 'trace-1',
+        };
+        yield {
+          type: 'token' as const,
+          content: ' the documents',
+          traceId: 'trace-1',
+        };
+        yield { type: 'done' as const, content: 'Done', traceId: 'trace-1' };
       };
       vi.mocked(ragQueryStream).mockReturnValue(mockGenerator());
 
@@ -464,15 +533,14 @@ describe('RAG Routes', () => {
       const text = await res.text();
       expect(text).toContain('event: sources');
       expect(text).toContain('event: token');
-      expect(text).toContain('event: end');
-      expect(text).toContain('Found 2 sources');
+      expect(text).toContain('event: done');
       expect(text).toContain('Based on');
     });
 
     it('should use query parameters including maxSources', async () => {
       const { ragQueryStream } = await import('../../agents/rag-agent.js');
       const mockGenerator = async function* () {
-        yield { type: 'end', content: 'Done', traceId: 'trace-2' };
+        yield { type: 'done' as const, content: 'Done', traceId: 'trace-2' };
       };
       vi.mocked(ragQueryStream).mockReturnValue(mockGenerator());
 
@@ -494,7 +562,7 @@ describe('RAG Routes', () => {
     it('should coerce maxSources to number', async () => {
       const { ragQueryStream } = await import('../../agents/rag-agent.js');
       const mockGenerator = async function* () {
-        yield { type: 'end', content: 'Done', traceId: 'trace-3' };
+        yield { type: 'done' as const, content: 'Done', traceId: 'trace-3' };
       };
       vi.mocked(ragQueryStream).mockReturnValue(mockGenerator());
 
@@ -532,7 +600,17 @@ describe('RAG Routes', () => {
     it('should send error event on stream failure', async () => {
       const { ragQueryStream } = await import('../../agents/rag-agent.js');
       const mockGenerator = async function* () {
-        yield { type: 'sources', content: 'Starting...', traceId: 'trace-4' };
+        yield {
+          type: 'sources' as const,
+          content: [] as Array<{
+            id: string;
+            title: string;
+            content: string;
+            score: number;
+            metadata: Record<string, unknown>;
+          }>,
+          traceId: 'trace-4',
+        };
         throw new Error('Stream error');
       };
       vi.mocked(ragQueryStream).mockReturnValue(mockGenerator());

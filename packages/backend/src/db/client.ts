@@ -7,7 +7,7 @@ const logger = getLogger();
 
 /**
  * Global database client instance (lazy initialization pattern)
- * Similar to SkillForge's session.py lazy engine creation
+ * Uses singleton pattern with deferred connection to avoid startup costs
  */
 let dbInstance: PostgresJsDatabase<typeof schema> | null = null;
 let sqlClient: postgres.Sql | null = null;
@@ -24,7 +24,7 @@ interface DbConfig {
 
 /**
  * Check if running in test mode
- * Similar to SkillForge's PYTEST_CURRENT_TEST check
+ * Detects Vitest, Jest, or pytest environments
  */
 function isTestMode(): boolean {
   return (
@@ -91,8 +91,10 @@ export async function getDb(): Promise<PostgresJsDatabase<typeof schema>> {
     };
 
     if (config.max !== undefined) poolOptions.max = config.max;
-    if (config.idleTimeout !== undefined) poolOptions.idle_timeout = config.idleTimeout;
-    if (config.connectTimeout !== undefined) poolOptions.connect_timeout = config.connectTimeout;
+    if (config.idleTimeout !== undefined)
+      poolOptions.idle_timeout = config.idleTimeout;
+    if (config.connectTimeout !== undefined)
+      poolOptions.connect_timeout = config.connectTimeout;
 
     sqlClient = postgres(config.url, poolOptions);
 

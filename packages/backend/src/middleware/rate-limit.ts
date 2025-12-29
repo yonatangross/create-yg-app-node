@@ -10,7 +10,11 @@
  * - Graceful degradation if Redis is unavailable
  */
 
-import { RateLimiterMemory, RateLimiterRedis, RateLimiterRes } from 'rate-limiter-flexible';
+import {
+  RateLimiterMemory,
+  RateLimiterRedis,
+  RateLimiterRes,
+} from 'rate-limiter-flexible';
 import type { Context, Next } from 'hono';
 import { Redis } from 'ioredis';
 import { getConfig } from '../core/config.js';
@@ -94,7 +98,9 @@ function getRedisClient(): Redis | null {
       maxRetriesPerRequest: 1,
       retryStrategy: (times: number) => {
         if (times > 3) {
-          logger.error('Redis connection failed for rate limiter, falling back to memory');
+          logger.error(
+            'Redis connection failed for rate limiter, falling back to memory'
+          );
           return null;
         }
         return Math.min(times * 100, 3000);
@@ -153,7 +159,10 @@ function getRateLimiter(
       duration: config.duration,
       blockDuration: config.blockDuration,
     });
-    logger.debug({ name, preset, backend: 'memory' }, 'Rate limiter created (fallback)');
+    logger.debug(
+      { name, preset, backend: 'memory' },
+      'Rate limiter created (fallback)'
+    );
   }
 
   rateLimiters.set(cacheKey, limiter);
@@ -222,12 +231,22 @@ export function rateLimitMiddleware(
       // Add rate limit headers
       c.header('X-RateLimit-Limit', String(RATE_LIMIT_PRESETS[preset].points));
       c.header('X-RateLimit-Remaining', String(rateLimiterRes.remainingPoints));
-      c.header('X-RateLimit-Reset', String(new Date(Date.now() + (rateLimiterRes.msBeforeNext || 0)).toISOString()));
+      c.header(
+        'X-RateLimit-Reset',
+        String(
+          new Date(
+            Date.now() + (rateLimiterRes.msBeforeNext || 0)
+          ).toISOString()
+        )
+      );
 
       return await next();
     } catch (error) {
       // Rate limit exceeded
-      if (error instanceof RateLimiterRes || (error instanceof Error && 'msBeforeNext' in error)) {
+      if (
+        error instanceof RateLimiterRes ||
+        (error instanceof Error && 'msBeforeNext' in error)
+      ) {
         const rateLimitError = error as unknown as RateLimiterRes;
         const retryAfter = Math.ceil((rateLimitError.msBeforeNext || 0) / 1000);
 
@@ -241,9 +260,19 @@ export function rateLimitMiddleware(
         );
 
         c.header('Retry-After', String(retryAfter));
-        c.header('X-RateLimit-Limit', String(RATE_LIMIT_PRESETS[preset].points));
+        c.header(
+          'X-RateLimit-Limit',
+          String(RATE_LIMIT_PRESETS[preset].points)
+        );
         c.header('X-RateLimit-Remaining', '0');
-        c.header('X-RateLimit-Reset', String(new Date(Date.now() + (rateLimitError.msBeforeNext || 0)).toISOString()));
+        c.header(
+          'X-RateLimit-Reset',
+          String(
+            new Date(
+              Date.now() + (rateLimitError.msBeforeNext || 0)
+            ).toISOString()
+          )
+        );
 
         return c.json(
           {
@@ -259,7 +288,10 @@ export function rateLimitMiddleware(
       }
 
       // Other errors (e.g., Redis down) - allow request through but log
-      logger.error({ error, key, preset }, 'Rate limiter error - allowing request');
+      logger.error(
+        { error, key, preset },
+        'Rate limiter error - allowing request'
+      );
       return await next();
     }
   };
@@ -304,7 +336,10 @@ export function customRateLimit(
 
       return await next();
     } catch (error) {
-      if (error instanceof RateLimiterRes || (error instanceof Error && 'msBeforeNext' in error)) {
+      if (
+        error instanceof RateLimiterRes ||
+        (error instanceof Error && 'msBeforeNext' in error)
+      ) {
         const rateLimitError = error as unknown as RateLimiterRes;
         const retryAfter = Math.ceil((rateLimitError.msBeforeNext || 0) / 1000);
 

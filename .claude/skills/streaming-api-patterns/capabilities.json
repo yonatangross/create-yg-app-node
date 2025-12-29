@@ -1,0 +1,30 @@
+{
+  "skill": "streaming-api-patterns",
+  "version": "1.0.0",
+  "capabilities": [
+    {
+      "id": "sse-streaming",
+      "name": "Server-Sent Events",
+      "keywords": ["sse", "stream", "server-sent", "event-stream"],
+      "description": "Implement SSE for server-to-client streaming with Hono"
+    },
+    {
+      "id": "llm-streaming",
+      "name": "LLM Response Streaming",
+      "keywords": ["llm", "chat", "openai", "streaming", "ai"],
+      "description": "Stream LLM responses token-by-token to clients"
+    },
+    {
+      "id": "reconnection",
+      "name": "Reconnection Strategies",
+      "keywords": ["reconnect", "backoff", "retry", "resilience"],
+      "description": "Implement automatic reconnection with exponential backoff"
+    },
+    {
+      "id": "backpressure",
+      "name": "Backpressure Handling",
+      "keywords": ["backpressure", "flow-control", "buffer"],
+      "description": "Handle slow consumers with proper flow control"
+    }
+  ]
+}

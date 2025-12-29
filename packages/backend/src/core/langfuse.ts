@@ -80,7 +80,11 @@ export function createLangfuseHandler(options?: {
 }): CallbackHandler | null {
   const config = getConfig();
 
-  if (!isEnabled || !config.LANGFUSE_PUBLIC_KEY || !config.LANGFUSE_SECRET_KEY) {
+  if (
+    !isEnabled ||
+    !config.LANGFUSE_PUBLIC_KEY ||
+    !config.LANGFUSE_SECRET_KEY
+  ) {
     return null;
   }
 

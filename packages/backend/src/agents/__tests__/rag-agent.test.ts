@@ -95,7 +95,8 @@ describe('RAG Agent', () => {
     // Reset all mocks
     vi.clearAllMocks();
 
-    // Setup mock model
+    // Setup mock model - use 'as unknown as Partial<BaseChatModel>' for mocking
+    // Note: We only include properties needed for testing, not full implementation
     mockModel = {
       invoke: vi.fn(async () => new AIMessage('Mock RAG response')),
       stream: vi.fn(async function* () {
@@ -106,7 +107,7 @@ describe('RAG Agent', () => {
       }),
       lc_namespace: ['langchain', 'chat_models'],
       lc_serializable: true,
-    };
+    } as unknown as Partial<BaseChatModel>;
 
     // Setup mock checkpointer with all required PostgresSaver methods
     mockCheckpointer = {
@@ -122,16 +123,20 @@ describe('RAG Agent', () => {
       flushAsync: vi.fn().mockResolvedValue(undefined),
     };
 
-    // Configure mocks
+    // Configure mocks - use type assertions for complex LangChain types
     vi.mocked(getResilientModel).mockReturnValue(mockModel as BaseChatModel);
-    vi.mocked(getOrInitCheckpointer).mockResolvedValue(mockCheckpointer);
-    vi.mocked(createLangfuseHandler).mockReturnValue(mockLangfuseHandler);
+    vi.mocked(getOrInitCheckpointer).mockResolvedValue(
+      mockCheckpointer as Awaited<ReturnType<typeof getOrInitCheckpointer>>
+    );
+    vi.mocked(createLangfuseHandler).mockReturnValue(
+      mockLangfuseHandler as ReturnType<typeof createLangfuseHandler>
+    );
 
     // Default: Return relevant documents with good scores
     vi.mocked(similaritySearchWithScore).mockResolvedValue([
-      [mockDocuments[0], 0.2], // 0.8 similarity after conversion
-      [mockDocuments[1], 0.5], // 0.5 similarity after conversion
-    ]);
+      [mockDocuments[0]!, 0.2], // 0.8 similarity after conversion
+      [mockDocuments[1]!, 0.5], // 0.5 similarity after conversion
+    ] as Awaited<ReturnType<typeof similaritySearchWithScore>>);
   });
 
   // ===========================================================================
@@ -246,7 +251,7 @@ describe('RAG Agent', () => {
 
   describe('Retrieval Logic', () => {
     it('should handle vector search results', async () => {
-      const mockResults: [{ pageContent: string; metadata?: Record<string, unknown> }, number][] = [
+      const mockResults = [
         [
           {
             pageContent: 'Test content',
@@ -254,14 +259,14 @@ describe('RAG Agent', () => {
           },
           0.1, // Low distance = high similarity
         ],
-      ];
+      ] as Awaited<ReturnType<typeof similaritySearchWithScore>>;
 
       vi.mocked(similaritySearchWithScore).mockResolvedValueOnce(mockResults);
 
       // Verify similarity search can be mocked
       const results = await similaritySearchWithScore('test query', 5);
       expect(results).toEqual(mockResults);
-      expect(results[0][1]).toBe(0.1); // Distance score
+      expect(results[0]?.[1]).toBe(0.1); // Distance score
     });
 
     it('should handle empty search results', async () => {
@@ -272,7 +277,7 @@ describe('RAG Agent', () => {
     });
 
     it('should handle documents without metadata', async () => {
-      const mockResults: [{ pageContent: string; metadata?: Record<string, unknown> }, number][] = [
+      const mockResults = [
         [
           {
             pageContent: 'Content without metadata',
@@ -280,12 +285,12 @@ describe('RAG Agent', () => {
           },
           0.2,
         ],
-      ];
+      ] as Awaited<ReturnType<typeof similaritySearchWithScore>>;
 
       vi.mocked(similaritySearchWithScore).mockResolvedValueOnce(mockResults);
 
       const results = await similaritySearchWithScore('test', 5);
-      expect(results[0][0].metadata).toEqual({});
+      expect(results[0]?.[0].metadata).toEqual({});
     });
   });
 
@@ -327,8 +332,8 @@ describe('RAG Agent', () => {
       const results = await similaritySearchWithScore('test query', 3);
 
       expect(results).toHaveLength(2); // Default mock returns 2 docs
-      expect(results[0][0]).toHaveProperty('pageContent');
-      expect(results[0][1]).toBeTypeOf('number'); // Distance score
+      expect(results[0]?.[0]).toHaveProperty('pageContent');
+      expect(results[0]?.[1]).toBeTypeOf('number'); // Distance score
     });
   });
 

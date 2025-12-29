@@ -161,7 +161,9 @@ export async function evaluatorExample() {
 // Example 4: Dynamic Skill Level Adaptation
 // =============================================================================
 
-export async function skillAdaptationExample(userSkillLevel: 'beginner' | 'intermediate' | 'expert') {
+export async function skillAdaptationExample(
+  userSkillLevel: 'beginner' | 'intermediate' | 'expert'
+) {
   const variables: ChatAgentVariables = {
     persona: 'coding instructor',
     context: 'Teaching async/await in TypeScript',
@@ -172,7 +174,10 @@ export async function skillAdaptationExample(userSkillLevel: 'beginner' | 'inter
 
   // The prompt will automatically include appropriate guidance
   // for the user's skill level
-  logger.info({ systemPrompt, userSkillLevel }, 'Skill adaptation example result');
+  logger.info(
+    { systemPrompt, userSkillLevel },
+    'Skill adaptation example result'
+  );
 }
 
 // =============================================================================

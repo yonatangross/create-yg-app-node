@@ -119,7 +119,10 @@ export async function similaritySearch(
 
   try {
     const results = await vectorStore.similaritySearch(query, k, filter);
-    logger.debug({ query, k, filter, resultsCount: results.length }, 'Similarity search');
+    logger.debug(
+      { query, k, filter, resultsCount: results.length },
+      'Similarity search'
+    );
     return results;
   } catch (error) {
     logger.error({ error, query }, 'Similarity search failed');
@@ -171,9 +174,7 @@ export async function similaritySearchWithScore(
  * @param documents - Documents to add
  * @returns Array of document IDs
  */
-export async function addDocuments(
-  documents: Document[]
-): Promise<void> {
+export async function addDocuments(documents: Document[]): Promise<void> {
   const vectorStore = getVectorStore();
 
   try {

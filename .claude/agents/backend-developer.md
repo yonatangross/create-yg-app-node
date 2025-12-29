@@ -143,7 +143,7 @@ Action:
 2. Add POST /api/auth/register with zValidator
 3. Call userService.create() (delegate DB to database-architect)
 4. Return proper response format
-5. Test: `curl -X POST localhost:3000/api/auth/register -d '{"email":"test@test.com"}' -H 'Content-Type: application/json'`
+5. Test: `curl -X POST localhost:4000/api/auth/register -d '{"email":"test@test.com"}' -H 'Content-Type: application/json'`
 
 ## Context Protocol
 - Before: Read `.claude/context/shared-context.json`

@@ -102,7 +102,8 @@ describe('Prompt Template Loader', () => {
           {
             id: '1',
             title: 'LangChain Documentation',
-            content: 'LangChain is a framework for developing applications powered by language models.',
+            content:
+              'LangChain is a framework for developing applications powered by language models.',
             score: 0.95,
           },
           {
@@ -239,18 +240,18 @@ describe('Prompt Template Loader', () => {
       const required: ('name' | 'age')[] = ['name', 'age'];
       const provided = { name: 'John' };
 
-      expect(() => validateVariables(required, provided as Record<string, unknown>)).toThrow(
-        'Missing required template variables: age'
-      );
+      expect(() =>
+        validateVariables(required, provided as Record<string, unknown>)
+      ).toThrow('Missing required template variables: age');
     });
 
     it('should list all missing variables', () => {
       const required: ('name' | 'age' | 'email')[] = ['name', 'age', 'email'];
       const provided = { name: 'John' };
 
-      expect(() => validateVariables(required, provided as Record<string, unknown>)).toThrow(
-        'Missing required template variables: age, email'
-      );
+      expect(() =>
+        validateVariables(required, provided as Record<string, unknown>)
+      ).toThrow('Missing required template variables: age, email');
     });
   });
 

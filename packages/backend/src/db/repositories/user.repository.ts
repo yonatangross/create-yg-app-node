@@ -2,7 +2,7 @@
  * User Repository Implementation
  *
  * Implements IUserRepository using Drizzle ORM
- * Follows SkillForge patterns with type-safe database operations
+ * Provides type-safe CRUD operations with proper error handling
  */
 
 import { eq, desc, count } from 'drizzle-orm';
@@ -135,9 +135,7 @@ export class UserRepository implements IUserRepository {
       });
 
       // Count total
-      const totalResult = await db
-        .select({ value: count() })
-        .from(users);
+      const totalResult = await db.select({ value: count() }).from(users);
 
       const total = totalResult[0]?.value ?? 0;
 

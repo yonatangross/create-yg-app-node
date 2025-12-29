@@ -8,8 +8,18 @@
  * - Fallback handling
  */
 
-import { Annotation, StateGraph, END, START, MessagesAnnotation } from '@langchain/langgraph';
-import { HumanMessage, AIMessage, SystemMessage } from '@langchain/core/messages';
+import {
+  Annotation,
+  StateGraph,
+  END,
+  START,
+  MessagesAnnotation,
+} from '@langchain/langgraph';
+import {
+  HumanMessage,
+  AIMessage,
+  SystemMessage,
+} from '@langchain/core/messages';
 import type { RunnableConfig } from '@langchain/core/runnables';
 import { getModel } from '../core/models.js';
 import { getOrInitCheckpointer } from '../shared/checkpointer.js';
@@ -98,13 +108,21 @@ async function retrieveNode(
     );
 
     // Transform to source format
-    const sources: RetrievedSource[] = results.map(([doc, score]: [{ pageContent: string; metadata?: Record<string, unknown> }, number], index: number) => ({
-      id: (doc.metadata?.id as string) || `doc-${index}`,
-      title: (doc.metadata?.title as string) || `Document ${index + 1}`,
-      content: doc.pageContent,
-      score: 1 - score, // Convert distance to similarity
-      metadata: doc.metadata,
-    }));
+    const sources: RetrievedSource[] = results.map(
+      (
+        [doc, score]: [
+          { pageContent: string; metadata?: Record<string, unknown> },
+          number,
+        ],
+        index: number
+      ) => ({
+        id: (doc.metadata?.id as string) || `doc-${index}`,
+        title: (doc.metadata?.title as string) || `Document ${index + 1}`,
+        content: doc.pageContent,
+        score: 1 - score, // Convert distance to similarity
+        metadata: doc.metadata,
+      })
+    );
 
     // Filter by relevance threshold (0.3 similarity after conversion)
     const relevantSources = sources.filter((s) => s.score >= 0.3);
@@ -181,20 +199,22 @@ async function generateNode(
 
   // Invoke model with circuit breaker and timeout protection
   const protectedInvoke = withCircuitBreaker(
-    () => withTimeout(
-      model.invoke(messages, config),
-      getTimeout('LLM_INVOKE'),
-      'rag-generate-invoke'
-    ),
+    () =>
+      withTimeout(
+        model.invoke(messages, config),
+        getTimeout('LLM_INVOKE'),
+        'rag-generate-invoke'
+      ),
     'llm',
     'rag-agent'
   );
 
   const response = await protectedInvoke();
 
-  const responseText = typeof response.content === 'string'
-    ? response.content
-    : JSON.stringify(response.content);
+  const responseText =
+    typeof response.content === 'string'
+      ? response.content
+      : JSON.stringify(response.content);
 
   return {
     response: responseText,
@@ -225,20 +245,25 @@ Be concise and helpful.`;
 
   // Invoke model with circuit breaker and timeout protection
   const protectedInvoke = withCircuitBreaker(
-    () => withTimeout(
-      model.invoke([new SystemMessage(fallbackPrompt), new HumanMessage(state.query)], config),
-      getTimeout('LLM_INVOKE'),
-      'rag-fallback-invoke'
-    ),
+    () =>
+      withTimeout(
+        model.invoke(
+          [new SystemMessage(fallbackPrompt), new HumanMessage(state.query)],
+          config
+        ),
+        getTimeout('LLM_INVOKE'),
+        'rag-fallback-invoke'
+      ),
     'llm',
     'rag-agent-fallback'
   );
 
   const response = await protectedInvoke();
 
-  const responseText = typeof response.content === 'string'
-    ? response.content
-    : JSON.stringify(response.content);
+  const responseText =
+    typeof response.content === 'string'
+      ? response.content
+      : JSON.stringify(response.content);
 
   logger.info({ query: state.query.slice(0, 50) }, 'Using fallback response');
 
@@ -273,7 +298,10 @@ function createRAGAgentGraph() {
     .addNode('generate', generateNode)
     .addNode('fallback', fallbackNode)
     .addEdge(START, 'retrieve')
-    .addConditionalEdges('retrieve', routeAfterRetrieval, ['generate', 'fallback'])
+    .addConditionalEdges('retrieve', routeAfterRetrieval, [
+      'generate',
+      'fallback',
+    ])
     .addEdge('generate', END)
     .addEdge('fallback', END);
 
@@ -284,7 +312,9 @@ function createRAGAgentGraph() {
 // Compiled Agent
 // =============================================================================
 
-let compiledAgent: Awaited<ReturnType<ReturnType<typeof createRAGAgentGraph>['compile']>> | null = null;
+let compiledAgent: Awaited<
+  ReturnType<ReturnType<typeof createRAGAgentGraph>['compile']>
+> | null = null;
 
 /**
  * Get or create the compiled RAG agent
@@ -341,7 +371,11 @@ export async function ragQuery(input: RAGQueryInput): Promise<RAGQueryOutput> {
   const callbacks = langfuseHandler ? [langfuseHandler] : [];
 
   logger.info(
-    { userId: input.userId, threadId: input.threadId, query: input.query.slice(0, 50) },
+    {
+      userId: input.userId,
+      threadId: input.threadId,
+      query: input.query.slice(0, 50),
+    },
     'Processing RAG query'
   );
 
@@ -431,9 +465,15 @@ export async function* ragQueryStream(input: RAGQueryInput): AsyncGenerator<{
     for await (const chunk of stream) {
       // Emit sources after retrieval
       if ('retrieve' in chunk && !sourcesEmitted) {
-        const retrieveState = chunk.retrieve as Partial<typeof RAGAgentState.State>;
+        const retrieveState = chunk.retrieve as Partial<
+          typeof RAGAgentState.State
+        >;
         if (retrieveState.sources && retrieveState.sources.length > 0) {
-          yield { type: 'sources', content: retrieveState.sources, traceId: undefined };
+          yield {
+            type: 'sources',
+            content: retrieveState.sources,
+            traceId: undefined,
+          };
           sourcesEmitted = true;
         }
       }
@@ -443,7 +483,11 @@ export async function* ragQueryStream(input: RAGQueryInput): AsyncGenerator<{
         const nodeKey = 'generate' in chunk ? 'generate' : 'fallback';
         const nodeState = chunk[nodeKey] as Partial<typeof RAGAgentState.State>;
         if (nodeState.response) {
-          yield { type: 'token', content: nodeState.response, traceId: undefined };
+          yield {
+            type: 'token',
+            content: nodeState.response,
+            traceId: undefined,
+          };
         }
       }
     }

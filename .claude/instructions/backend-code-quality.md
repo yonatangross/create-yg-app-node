@@ -114,7 +114,7 @@ import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 
 app.use('*', logger());
-app.use('/api/*', cors({ origin: ['http://localhost:5173'] }));
+app.use('/api/*', cors({ origin: ['http://localhost:4173'] }));
 ```
 
 ---

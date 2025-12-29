@@ -38,7 +38,10 @@ export interface CircuitBreakerStats {
 }
 
 export class CircuitBreakerError extends Error {
-  constructor(message: string, public state: CircuitState) {
+  constructor(
+    message: string,
+    public state: CircuitState
+  ) {
     super(message);
     this.name = 'CircuitBreakerError';
   }
@@ -80,10 +83,7 @@ export class CircuitBreaker extends EventEmitter {
 
   constructor(private config: CircuitBreakerConfig) {
     super();
-    logger.debug(
-      { name: config.name, config },
-      'Circuit breaker initialized'
-    );
+    logger.debug({ name: config.name, config }, 'Circuit breaker initialized');
   }
 
   /**

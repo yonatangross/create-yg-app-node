@@ -4,7 +4,7 @@
  * Redis-cached embeddings to reduce API costs by ~80%.
  * Uses SHA256 hash for cache keys with configurable TTL.
  *
- * Based on SkillForge production pattern.
+ * Production-ready pattern for LLM cost optimization.
  */
 
 import { createHash } from 'crypto';
@@ -71,7 +71,10 @@ export class CachedEmbeddingsService {
     try {
       this.redis = getRedisClient();
     } catch (error) {
-      logger.warn({ error }, 'Redis unavailable, embeddings will not be cached');
+      logger.warn(
+        { error },
+        'Redis unavailable, embeddings will not be cached'
+      );
       this.redis = null;
     }
   }
@@ -166,7 +169,9 @@ export class CachedEmbeddingsService {
 
     // Embed uncached texts
     if (uncachedIndices.length > 0) {
-      const uncachedTexts = uncachedIndices.map((i) => texts[i]).filter((t): t is string => t !== undefined);
+      const uncachedTexts = uncachedIndices
+        .map((i) => texts[i])
+        .filter((t): t is string => t !== undefined);
       const newEmbeddings = await this.embeddings.embedDocuments(uncachedTexts);
 
       // Store in results and cache

@@ -1,0 +1,17 @@
+{
+  "version": "1.0.0",
+  "lastUpdated": null,
+  "currentTask": null,
+  "activeBranch": null,
+  "recentDecisions": [],
+  "pendingActions": [],
+  "context": {
+    "projectType": "node-fullstack",
+    "stack": {
+      "frontend": "React 19 + Vite + TailwindCSS",
+      "backend": "Hono + Node.js",
+      "database": "PostgreSQL + Drizzle ORM",
+      "ai": "LangChain.js + Langfuse"
+    }
+  }
+}

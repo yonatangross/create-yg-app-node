@@ -23,7 +23,11 @@ logger.info('Demo 1: Chat Agent (Beginner Level)');
 const chatVariables: ChatAgentVariables = {
   persona: 'friendly coding mentor',
   context: 'User is learning TypeScript for the first time',
-  constraints: ['Use simple language', 'Provide step-by-step examples', 'Encourage practice'],
+  constraints: [
+    'Use simple language',
+    'Provide step-by-step examples',
+    'Encourage practice',
+  ],
   skill_level: 'beginner',
 };
 

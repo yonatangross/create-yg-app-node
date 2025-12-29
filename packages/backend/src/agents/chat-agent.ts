@@ -7,7 +7,13 @@
  * - Langfuse tracing integration
  */
 
-import { Annotation, StateGraph, END, START, MessagesAnnotation } from '@langchain/langgraph';
+import {
+  Annotation,
+  StateGraph,
+  END,
+  START,
+  MessagesAnnotation,
+} from '@langchain/langgraph';
 import { HumanMessage, AIMessage } from '@langchain/core/messages';
 import { ToolNode } from '@langchain/langgraph/prebuilt';
 import { tool } from '@langchain/core/tools';
@@ -73,15 +79,21 @@ const calculatorTool = tool(
       const result = evaluate(expression, {});
       return String(result);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unable to evaluate expression';
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : 'Unable to evaluate expression';
       return `Error: ${errorMessage}`;
     }
   },
   {
     name: 'calculator',
-    description: 'Evaluate a mathematical expression. Supports +, -, *, /, %, ^, parentheses, and common math functions (sqrt, sin, cos, etc).',
+    description:
+      'Evaluate a mathematical expression. Supports +, -, *, /, %, ^, parentheses, and common math functions (sqrt, sin, cos, etc).',
     schema: z.object({
-      expression: z.string().describe('The mathematical expression to evaluate'),
+      expression: z
+        .string()
+        .describe('The mathematical expression to evaluate'),
     }),
   }
 );
@@ -127,11 +139,12 @@ async function agentNode(
 
   // Invoke model with circuit breaker and timeout protection
   const protectedInvoke = withCircuitBreaker(
-    () => withTimeout(
-      modelWithTools.invoke(messages, config),
-      getTimeout('LLM_INVOKE'),
-      'chat-agent-invoke'
-    ),
+    () =>
+      withTimeout(
+        modelWithTools.invoke(messages, config),
+        getTimeout('LLM_INVOKE'),
+        'chat-agent-invoke'
+      ),
     'llm',
     'chat-agent'
   );
@@ -189,7 +202,9 @@ function createChatAgentGraph() {
 // Compiled Agent
 // =============================================================================
 
-let compiledAgent: Awaited<ReturnType<ReturnType<typeof createChatAgentGraph>['compile']>> | null = null;
+let compiledAgent: Awaited<
+  ReturnType<ReturnType<typeof createChatAgentGraph>['compile']>
+> | null = null;
 
 /**
  * Get or create the compiled chat agent with checkpointer
@@ -264,10 +279,13 @@ export async function chat(input: ChatInput): Promise<ChatOutput> {
     );
 
     // Extract response and tools used
-    const lastMessage = result.messages[result.messages.length - 1] as AIMessage;
-    const response = typeof lastMessage.content === 'string'
-      ? lastMessage.content
-      : JSON.stringify(lastMessage.content);
+    const lastMessage = result.messages[
+      result.messages.length - 1
+    ] as AIMessage;
+    const response =
+      typeof lastMessage.content === 'string'
+        ? lastMessage.content
+        : JSON.stringify(lastMessage.content);
 
     // Collect tools used from message history
     const toolsUsed: string[] = [];
@@ -342,9 +360,10 @@ export async function* chatStream(input: ChatInput): AsyncGenerator<{
       const lastMessage = chunk.messages[chunk.messages.length - 1];
 
       if (lastMessage && 'content' in lastMessage) {
-        const content = typeof lastMessage.content === 'string'
-          ? lastMessage.content
-          : JSON.stringify(lastMessage.content);
+        const content =
+          typeof lastMessage.content === 'string'
+            ? lastMessage.content
+            : JSON.stringify(lastMessage.content);
 
         if (content) {
           yield { type: 'token', content, traceId: undefined };

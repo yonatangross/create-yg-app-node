@@ -317,7 +317,7 @@ Action:
 2. Implement embedding service with caching
 3. Build LangGraph agent with tools
 4. Add streaming endpoint
-5. Test: `curl -N localhost:3000/api/chat/stream?message=Hello`
+5. Test: `curl -N localhost:4000/api/chat/stream?message=Hello`
 
 ## Context Protocol
 - Before: Read `.claude/context/shared-context.json`

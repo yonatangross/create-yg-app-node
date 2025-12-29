@@ -14,7 +14,10 @@ import {
   BulkheadTier,
   BulkheadRejectedError,
 } from '../resilience/bulkhead.js';
-import { ResilienceManager, getResilienceManager } from '../resilience/manager.js';
+import {
+  ResilienceManager,
+  getResilienceManager,
+} from '../resilience/manager.js';
 
 describe('CircuitBreaker', () => {
   let breaker: CircuitBreaker;

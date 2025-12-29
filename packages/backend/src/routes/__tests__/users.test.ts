@@ -5,9 +5,38 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { app } from '../../app.js';
 
+// Type definitions for API responses
+interface User {
+  id: string;
+  email: string;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface ApiResponse<T> {
+  success: boolean;
+  data: T;
+  error?: { code: string; message: string };
+}
+
+interface PaginatedResponse<T> {
+  items: T[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+  };
+}
+
 describe('Users Routes', () => {
   // Helper to create a test user
-  const createTestUser = async (data = { email: 'test@example.com', name: 'Test User' }) => {
+  const createTestUser = async (
+    data = { email: 'test@example.com', name: 'Test User' }
+  ) => {
     const res = await app.request('/api/users', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -29,7 +58,7 @@ describe('Users Routes', () => {
       const res = await createTestUser(userData);
 
       expect(res.status).toBe(201);
-      const body = await res.json();
+      const body = (await res.json()) as ApiResponse<User>;
 
       expect(body.success).toBe(true);
       expect(body.data).toMatchObject({
@@ -52,7 +81,7 @@ describe('Users Routes', () => {
       });
 
       expect(res.status).toBe(400);
-      const body = await res.json();
+      const body = (await res.json()) as ApiResponse<unknown>;
       expect(body.success).toBe(false);
     });
 
@@ -66,7 +95,7 @@ describe('Users Routes', () => {
       });
 
       expect(res.status).toBe(400);
-      const body = await res.json();
+      const body = (await res.json()) as ApiResponse<unknown>;
       expect(body.success).toBe(false);
     });
 
@@ -103,14 +132,14 @@ describe('Users Routes', () => {
         email: 'bob@example.com',
         name: 'Bob Smith',
       });
-      const createdUser = await createRes.json();
+      const createdUser = (await createRes.json()) as ApiResponse<User>;
       const userId = createdUser.data.id;
 
       // Get the user
       const res = await app.request(`/api/users/${userId}`);
 
       expect(res.status).toBe(200);
-      const body = await res.json();
+      const body = (await res.json()) as ApiResponse<User>;
 
       expect(body.success).toBe(true);
       expect(body.data).toMatchObject({
@@ -125,7 +154,7 @@ describe('Users Routes', () => {
       const res = await app.request(`/api/users/${fakeId}`);
 
       expect(res.status).toBe(404);
-      const body = await res.json();
+      const body = (await res.json()) as ApiResponse<User>;
 
       expect(body.success).toBe(false);
       expect(body.error).toMatchObject({
@@ -142,12 +171,12 @@ describe('Users Routes', () => {
         email: 'charlie@example.com',
         name: 'Charlie Brown',
       });
-      const createdUser = await createRes.json();
+      const createdUser = (await createRes.json()) as ApiResponse<User>;
       const userId = createdUser.data.id;
       const originalUpdatedAt = createdUser.data.updatedAt;
 
       // Small delay to ensure updatedAt changes
-      await new Promise(resolve => setTimeout(resolve, 10));
+      await new Promise((resolve) => setTimeout(resolve, 10));
 
       // Update the user
       const res = await app.request(`/api/users/${userId}`, {
@@ -159,7 +188,7 @@ describe('Users Routes', () => {
       });
 
       expect(res.status).toBe(200);
-      const body = await res.json();
+      const body = (await res.json()) as ApiResponse<User>;
 
       expect(body.success).toBe(true);
       expect(body.data).toMatchObject({
@@ -176,7 +205,7 @@ describe('Users Routes', () => {
         email: 'diana@example.com',
         name: 'Diana Prince',
       });
-      const createdUser = await createRes.json();
+      const createdUser = (await createRes.json()) as ApiResponse<User>;
       const userId = createdUser.data.id;
 
       // Update with empty object (should succeed but change nothing except updatedAt)
@@ -187,7 +216,7 @@ describe('Users Routes', () => {
       });
 
       expect(res.status).toBe(200);
-      const body = await res.json();
+      const body = (await res.json()) as ApiResponse<User>;
 
       expect(body.success).toBe(true);
       expect(body.data.name).toBe('Diana Prince');
@@ -205,10 +234,10 @@ describe('Users Routes', () => {
       });
 
       expect(res.status).toBe(404);
-      const body = await res.json();
+      const body = (await res.json()) as ApiResponse<User>;
 
       expect(body.success).toBe(false);
-      expect(body.error.code).toBe('NOT_FOUND');
+      expect(body.error?.code).toBe('NOT_FOUND');
     });
   });
 
@@ -219,7 +248,7 @@ describe('Users Routes', () => {
         email: 'eve@example.com',
         name: 'Eve Adams',
       });
-      const createdUser = await createRes.json();
+      const createdUser = (await createRes.json()) as ApiResponse<User>;
       const userId = createdUser.data.id;
 
       // Delete the user
@@ -242,10 +271,10 @@ describe('Users Routes', () => {
       });
 
       expect(res.status).toBe(404);
-      const body = await res.json();
+      const body = (await res.json()) as ApiResponse<User>;
 
       expect(body.success).toBe(false);
-      expect(body.error.code).toBe('NOT_FOUND');
+      expect(body.error?.code).toBe('NOT_FOUND');
     });
   });
 
@@ -261,7 +290,7 @@ describe('Users Routes', () => {
       const res = await app.request('/api/users');
 
       expect(res.status).toBe(200);
-      const body = await res.json();
+      const body = (await res.json()) as ApiResponse<PaginatedResponse<User>>;
 
       expect(body.success).toBe(true);
       expect(body.data.items).toBeInstanceOf(Array);
@@ -276,7 +305,7 @@ describe('Users Routes', () => {
       const res = await app.request('/api/users?page=1&limit=2');
 
       expect(res.status).toBe(200);
-      const body = await res.json();
+      const body = (await res.json()) as ApiResponse<PaginatedResponse<User>>;
 
       expect(body.success).toBe(true);
       expect(body.data.items.length).toBeLessThanOrEqual(2);
@@ -289,7 +318,7 @@ describe('Users Routes', () => {
     it('should calculate pagination metadata correctly', async () => {
       const res = await app.request('/api/users?page=1&limit=2');
 
-      const body = await res.json();
+      const body = (await res.json()) as ApiResponse<PaginatedResponse<User>>;
       const { pagination } = body.data;
 
       expect(pagination.totalPages).toBe(Math.ceil(pagination.total / 2));
@@ -301,7 +330,7 @@ describe('Users Routes', () => {
       const res = await app.request('/api/users?page=2&limit=5');
 
       expect(res.status).toBe(200);
-      const body = await res.json();
+      const body = (await res.json()) as ApiResponse<PaginatedResponse<User>>;
 
       expect(body.data.pagination.page).toBe(2);
       expect(body.data.pagination.limit).toBe(5);
@@ -323,7 +352,7 @@ describe('Users Routes', () => {
       const res = await app.request('/api/users?page=9999');
 
       expect(res.status).toBe(200);
-      const body = await res.json();
+      const body = (await res.json()) as ApiResponse<PaginatedResponse<User>>;
 
       expect(body.data.items).toEqual([]);
     });

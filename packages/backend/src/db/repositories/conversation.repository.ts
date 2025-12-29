@@ -149,10 +149,7 @@ export class ConversationRepository implements IConversationRepository {
    *
    * Uses JSONB array append for efficient message storage
    */
-  async appendMessage(
-    id: string,
-    message: ChatMessage
-  ): Promise<Conversation> {
+  async appendMessage(id: string, message: ChatMessage): Promise<Conversation> {
     try {
       const db = await getDb();
 
@@ -181,10 +178,7 @@ export class ConversationRepository implements IConversationRepository {
 
       return updated;
     } catch (error) {
-      logger.error(
-        { error, conversationId: id },
-        'Failed to append message'
-      );
+      logger.error({ error, conversationId: id }, 'Failed to append message');
       throw error;
     }
   }
@@ -222,10 +216,7 @@ export class ConversationRepository implements IConversationRepository {
 
       return totalResult[0]?.value ?? 0;
     } catch (error) {
-      logger.error(
-        { error, userId },
-        'Failed to count conversations'
-      );
+      logger.error({ error, userId }, 'Failed to count conversations');
       throw error;
     }
   }

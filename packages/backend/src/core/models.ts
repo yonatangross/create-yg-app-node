@@ -222,7 +222,9 @@ export function clearModelCache(): void {
 export function wrapModelInvoke(model: BaseChatModel, serviceName: string) {
   const originalInvoke = model.invoke.bind(model);
 
-  return async function invoke(...args: Parameters<BaseChatModel['invoke']>): ReturnType<BaseChatModel['invoke']> {
+  return async function invoke(
+    ...args: Parameters<BaseChatModel['invoke']>
+  ): ReturnType<BaseChatModel['invoke']> {
     const operation = `llm-invoke-${serviceName}`;
 
     // First apply circuit breaker
