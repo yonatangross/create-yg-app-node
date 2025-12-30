@@ -3,7 +3,7 @@
  * Type-safe template rendering with caching and error handling
  */
 
-import * as nunjucks from 'nunjucks';
+import nunjucks from 'nunjucks';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import pino from 'pino';

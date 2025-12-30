@@ -8,6 +8,9 @@
  * - Per-IP rate limiting
  * - Different limits for different endpoint types
  * - Graceful degradation if Redis is unavailable
+ *
+ * Now uses the unified Redis client from core/redis.ts
+ * for proper connection management and graceful shutdown.
  */
 
 import {
@@ -16,9 +19,10 @@ import {
   RateLimiterRes,
 } from 'rate-limiter-flexible';
 import type { Context, Next } from 'hono';
-import { Redis } from 'ioredis';
-import { getConfig } from '../core/config.js';
+import type { Redis } from 'ioredis';
+import { getRedis, isRedisHealthy } from '../core/redis.js';
 import { getLogger } from '../core/logger.js';
+import { getConfig } from '../core/config.js';
 
 const logger = getLogger();
 
@@ -28,9 +32,9 @@ const logger = getLogger();
 const rateLimiters = new Map<string, RateLimiterMemory | RateLimiterRedis>();
 
 /**
- * Redis client for rate limiting (shared instance)
+ * Redis client availability flag
  */
-let redisClient: Redis | null = null;
+let redisAvailable = true;
 
 /**
  * Rate limit configuration presets
@@ -78,43 +82,33 @@ export const RATE_LIMIT_PRESETS = {
 export type RateLimitPreset = keyof typeof RATE_LIMIT_PRESETS;
 
 /**
- * Get or create Redis client for rate limiting
+ * Get Redis client for rate limiting (uses unified client)
+ *
+ * Falls back to null if Redis is unavailable, allowing
+ * graceful degradation to in-memory rate limiting.
  */
 function getRedisClient(): Redis | null {
-  if (redisClient) {
-    return redisClient;
-  }
-
-  const config = getConfig();
-
-  if (!config.REDIS_URL) {
-    logger.warn('REDIS_URL not configured, using in-memory rate limiting');
+  if (!redisAvailable) {
     return null;
   }
 
   try {
-    redisClient = new Redis(config.REDIS_URL, {
-      enableOfflineQueue: false,
-      maxRetriesPerRequest: 1,
-      retryStrategy: (times: number) => {
-        if (times > 3) {
-          logger.error(
-            'Redis connection failed for rate limiter, falling back to memory'
-          );
-          return null;
-        }
-        return Math.min(times * 100, 3000);
-      },
+    const redis = getRedis();
+
+    // Check health on first use
+    isRedisHealthy().then((healthy) => {
+      if (!healthy) {
+        logger.warn(
+          'Redis unhealthy, rate limiting will use in-memory fallback'
+        );
+        redisAvailable = false;
+      }
     });
 
-    redisClient.on('error', (error: Error) => {
-      logger.error({ error }, 'Redis rate limiter error');
-    });
-
-    logger.info('Redis rate limiter initialized');
-    return redisClient;
+    return redis;
   } catch (error) {
-    logger.error({ error }, 'Failed to create Redis client for rate limiter');
+    logger.warn({ error }, 'Redis unavailable, using in-memory rate limiting');
+    redisAvailable = false;
     return null;
   }
 }
@@ -170,30 +164,72 @@ function getRateLimiter(
 }
 
 /**
+ * Validate IP address format (IPv4 or IPv6)
+ */
+function isValidIP(ip: string): boolean {
+  // IPv4 pattern
+  const ipv4Pattern =
+    /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+  // IPv6 simplified pattern (covers most cases)
+  const ipv6Pattern = /^([0-9a-fA-F]{0,4}:){2,7}[0-9a-fA-F]{0,4}$/;
+
+  return ipv4Pattern.test(ip) || ipv6Pattern.test(ip);
+}
+
+/**
  * Extract client identifier from request
  *
- * Priority: X-Forwarded-For > X-Real-IP > Remote Address
+ * SECURITY: Only trusts proxy headers (X-Forwarded-For, X-Real-IP) when
+ * TRUST_PROXY is enabled. Without trusted proxy, attackers could spoof
+ * their IP to bypass rate limiting.
  *
  * @param c - Hono context
  * @returns Client IP or identifier
  */
 function getClientIdentifier(c: Context): string {
-  // Check X-Forwarded-For (proxy/load balancer)
-  const forwardedFor = c.req.header('x-forwarded-for');
-  if (forwardedFor) {
-    // Take first IP if multiple proxies
-    const firstIp = forwardedFor.split(',')[0];
-    return firstIp ? firstIp.trim() : 'unknown';
+  const config = getConfig();
+
+  // Only trust proxy headers when explicitly configured
+  if (config.TRUST_PROXY) {
+    // Check X-Forwarded-For (proxy/load balancer)
+    const forwardedFor = c.req.header('x-forwarded-for');
+    if (forwardedFor) {
+      // Take first IP (client IP when behind proper proxy)
+      const firstIp = forwardedFor.split(',')[0]?.trim();
+      if (firstIp && isValidIP(firstIp)) {
+        return firstIp;
+      }
+    }
+
+    // Check X-Real-IP (nginx convention)
+    const realIp = c.req.header('x-real-ip');
+    if (realIp && isValidIP(realIp)) {
+      return realIp;
+    }
   }
 
-  // Check X-Real-IP
-  const realIp = c.req.header('x-real-ip');
-  if (realIp) {
-    return realIp;
-  }
+  // When not trusting proxy or no valid proxy headers:
+  // Use a combination of available identifiers for rate limiting
+  // This is less accurate but prevents IP spoofing attacks
+  const userAgent = c.req.header('user-agent') || 'unknown-ua';
+  const acceptLanguage = c.req.header('accept-language') || 'unknown-lang';
 
-  // Fallback to remote address (may not be available in all environments)
-  return 'unknown';
+  // Create a fingerprint-based identifier (not perfect, but prevents trivial spoofing)
+  // In production, consider using session tokens or API keys instead
+  return `client-${hashString(userAgent + acceptLanguage)}`;
+}
+
+/**
+ * Simple string hash for fingerprinting (not cryptographic)
+ */
+function hashString(str: string): string {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = (hash << 5) - hash + char;
+    hash = hash & hash; // Convert to 32-bit integer
+  }
+  return Math.abs(hash).toString(36);
 }
 
 /**
@@ -364,13 +400,16 @@ export function customRateLimit(
 }
 
 /**
- * Shutdown rate limiter (close Redis connection)
+ * Shutdown rate limiter
+ *
+ * Note: The actual Redis connection is now managed by core/redis.ts.
+ * This function clears internal caches but delegates connection
+ * shutdown to the central Redis manager via shutdownRedis().
  */
 export async function shutdownRateLimiter(): Promise<void> {
-  if (redisClient) {
-    await redisClient.quit();
-    redisClient = null;
-    logger.info('Rate limiter Redis connection closed');
-  }
+  // Redis connection is managed centrally by core/redis.ts
+  // Clear internal rate limiter caches
   rateLimiters.clear();
+  redisAvailable = true; // Reset for potential restart
+  logger.info('Rate limiter shutdown (connection managed by core/redis)');
 }

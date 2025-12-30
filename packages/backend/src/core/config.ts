@@ -7,9 +7,17 @@
 
 import { z } from 'zod';
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-// Load .env file
-dotenv.config();
+// Get current directory (ESM compatible)
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Load .env file from project root (2 levels up from src/core/)
+// Searches: packages/backend/.env -> root .env
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+dotenv.config({ path: path.resolve(__dirname, '../../../../.env') });
 
 const envSchema = z.object({
   // Server
@@ -26,14 +34,14 @@ const envSchema = z.object({
   DATABASE_URL: z
     .string()
     .url()
-    .default('postgresql://postgres:postgres@localhost:5433/yg_app_node'),
+    .default('postgresql://postgres:postgres@localhost:5434/yg_app_node'),
   DATABASE_POOL_MAX: z.coerce.number().default(20),
   DATABASE_POOL_MIN: z.coerce.number().default(2),
   DATABASE_IDLE_TIMEOUT: z.coerce.number().default(30000), // 30s
   DATABASE_CONNECT_TIMEOUT: z.coerce.number().default(10000), // 10s
 
   // Redis
-  REDIS_URL: z.string().url().default('redis://localhost:6380'),
+  REDIS_URL: z.string().url().default('redis://:redis_password@localhost:6381'),
   REDIS_MAX_RETRIES: z.coerce.number().default(3),
   REDIS_CONNECT_TIMEOUT: z.coerce.number().default(10000), // 10s
 
@@ -54,6 +62,12 @@ const envSchema = z.object({
   CORS_ORIGINS: z
     .string()
     .default('http://localhost:4173,http://localhost:4000'),
+  // Trust proxy headers (X-Forwarded-For, X-Real-IP)
+  // Only enable when behind a reverse proxy (nginx, cloudflare, etc.)
+  TRUST_PROXY: z
+    .string()
+    .transform((val) => val === 'true' || val === '1')
+    .default('false'),
 
   // Resilience
   CIRCUIT_BREAKER_TIMEOUT: z.coerce.number().default(3000), // 3s

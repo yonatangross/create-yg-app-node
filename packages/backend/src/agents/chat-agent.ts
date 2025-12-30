@@ -245,11 +245,13 @@ export interface ChatOutput {
 
 /**
  * Process a chat message through the agent
+ *
+ * Langfuse tracing is fire-and-forget - errors are logged but never propagate.
  */
 export async function chat(input: ChatInput): Promise<ChatOutput> {
   const agent = await getChatAgent();
 
-  // Create Langfuse handler for tracing
+  // Create Langfuse handler for tracing (wrapped in SafeCallbackHandler)
   const langfuseHandler = createLangfuseHandler({
     userId: input.userId,
     sessionId: input.sessionId,
@@ -263,60 +265,70 @@ export async function chat(input: ChatInput): Promise<ChatOutput> {
     'Processing chat message'
   );
 
+  const invokeParams = {
+    messages: [new HumanMessage(input.message)],
+    userId: input.userId,
+    sessionId: input.sessionId,
+    persona: input.persona || 'helpful assistant',
+  };
+
+  const invokeConfig = {
+    configurable: { thread_id: input.threadId },
+    callbacks,
+  };
+
+  // Invoke the agent - SafeCallbackHandler ensures tracing errors don't propagate
+  let result;
   try {
-    // Invoke the agent
-    const result = await agent.invoke(
-      {
-        messages: [new HumanMessage(input.message)],
-        userId: input.userId,
-        sessionId: input.sessionId,
-        persona: input.persona || 'helpful assistant',
-      },
-      {
-        configurable: { thread_id: input.threadId },
-        callbacks,
-      }
-    );
-
-    // Extract response and tools used
-    const lastMessage = result.messages[
-      result.messages.length - 1
-    ] as AIMessage;
-    const response =
-      typeof lastMessage.content === 'string'
-        ? lastMessage.content
-        : JSON.stringify(lastMessage.content);
-
-    // Collect tools used from message history
-    const toolsUsed: string[] = [];
-    for (const m of result.messages) {
-      if ('tool_calls' in m && Array.isArray((m as AIMessage).tool_calls)) {
-        for (const tc of (m as AIMessage).tool_calls!) {
-          if (tc.name) toolsUsed.push(tc.name);
-        }
-      }
-    }
-
-    // Flush Langfuse
-    if (langfuseHandler) {
-      await langfuseHandler.flushAsync();
-    }
-
-    return {
-      response,
-      traceId: langfuseHandler?.traceId,
-      toolsUsed: [...new Set(toolsUsed)],
-    };
+    result = await agent.invoke(invokeParams, invokeConfig);
   } catch (error) {
-    logger.error({ error, input }, 'Chat agent error');
-
-    // Ensure Langfuse is flushed even on error
+    // Extract error details for proper logging (LangGraph errors may have non-standard structure)
+    const errorDetails = {
+      message: error instanceof Error ? error.message : String(error),
+      name: error instanceof Error ? error.name : 'Unknown',
+      stack: error instanceof Error ? error.stack : undefined,
+      cause:
+        error instanceof Error
+          ? (error as Error & { cause?: unknown }).cause
+          : undefined,
+      // Include any additional properties from LangGraph errors
+      ...(typeof error === 'object' && error !== null ? error : {}),
+    };
+    logger.error({ error: errorDetails, input }, 'Chat agent error');
+    // Flush Langfuse on error (SafeCallbackHandler makes this safe)
     if (langfuseHandler) {
       await langfuseHandler.flushAsync();
     }
-
     throw error;
   }
+
+  // Extract response and tools used
+  const lastMessage = result.messages[result.messages.length - 1] as AIMessage;
+  const response =
+    typeof lastMessage.content === 'string'
+      ? lastMessage.content
+      : JSON.stringify(lastMessage.content);
+
+  // Collect tools used from message history
+  const toolsUsed: string[] = [];
+  for (const m of result.messages) {
+    if ('tool_calls' in m && Array.isArray((m as AIMessage).tool_calls)) {
+      for (const tc of (m as AIMessage).tool_calls!) {
+        if (tc.name) toolsUsed.push(tc.name);
+      }
+    }
+  }
+
+  // Flush Langfuse (SafeCallbackHandler makes this safe)
+  if (langfuseHandler) {
+    await langfuseHandler.flushAsync();
+  }
+
+  return {
+    response,
+    traceId: langfuseHandler?.traceId,
+    toolsUsed: [...new Set(toolsUsed)],
+  };
 }
 
 // =============================================================================
@@ -324,15 +336,80 @@ export async function chat(input: ChatInput): Promise<ChatOutput> {
 // =============================================================================
 
 /**
- * Stream chat responses
+ * Stream event types with properly typed content
  */
-export async function* chatStream(input: ChatInput): AsyncGenerator<{
-  type: 'token' | 'tool_call' | 'tool_result' | 'done';
-  content: string;
-  traceId: string | undefined;
-}> {
+export type StreamEvent =
+  | {
+      type: 'text_delta';
+      content: string;
+      traceId?: string;
+    }
+  | {
+      type: 'tool_call';
+      toolCallId: string;
+      toolName: string;
+      toolInput: unknown;
+      traceId?: string;
+    }
+  | {
+      type: 'tool_result';
+      toolCallId: string;
+      result: string;
+      traceId?: string;
+    }
+  | {
+      type: 'done';
+      traceId: string | undefined;
+    };
+
+/**
+ * Extract text content from both OpenAI (string) and Anthropic (content blocks array) formats
+ * @internal Exported for testing - use chatStream for production
+ */
+export function extractTextContent(content: unknown): string {
+  // OpenAI format: content is a string
+  if (typeof content === 'string') {
+    return content;
+  }
+
+  // Anthropic format: content is an array of content blocks
+  if (Array.isArray(content)) {
+    let text = '';
+    for (const block of content) {
+      if (
+        block &&
+        typeof block === 'object' &&
+        'type' in block &&
+        block.type === 'text' &&
+        'text' in block &&
+        typeof block.text === 'string'
+      ) {
+        text += block.text;
+      }
+    }
+    return text;
+  }
+
+  return '';
+}
+
+/**
+ * Stream chat responses using LangGraph's streamEvents() API
+ *
+ * Uses the full LangGraph agent loop with:
+ * - Token-level streaming via 'on_chat_model_stream' events
+ * - Tool execution with 'on_tool_start' and 'on_tool_end' events
+ * - Conversation history/memory via checkpointer
+ * - Support for both OpenAI (string) and Anthropic (content blocks) formats
+ *
+ * Langfuse tracing is fire-and-forget - errors are logged but never propagate.
+ */
+export async function* chatStream(
+  input: ChatInput
+): AsyncGenerator<StreamEvent> {
   const agent = await getChatAgent();
 
+  // Create Langfuse handler for tracing (wrapped in SafeCallbackHandler)
   const langfuseHandler = createLangfuseHandler({
     userId: input.userId,
     sessionId: input.sessionId,
@@ -341,42 +418,100 @@ export async function* chatStream(input: ChatInput): AsyncGenerator<{
 
   const callbacks = langfuseHandler ? [langfuseHandler] : [];
 
+  logger.info(
+    { userId: input.userId, threadId: input.threadId },
+    'Starting stream chat'
+  );
+
+  const streamParams = {
+    messages: [new HumanMessage(input.message)],
+    userId: input.userId,
+    sessionId: input.sessionId,
+    persona: input.persona || 'helpful assistant',
+  };
+
+  const streamConfig = {
+    configurable: { thread_id: input.threadId },
+    callbacks,
+    version: 'v2' as const,
+  };
+
   try {
-    const stream = await agent.stream(
-      {
-        messages: [new HumanMessage(input.message)],
-        userId: input.userId,
-        sessionId: input.sessionId,
-        persona: input.persona || 'helpful assistant',
-      },
-      {
-        configurable: { thread_id: input.threadId },
-        callbacks,
-        streamMode: 'values',
+    // Use streamEvents() for proper LangGraph agent streaming
+    const eventStream = agent.streamEvents(streamParams, streamConfig);
+
+    for await (const event of eventStream) {
+      // Handle chat model streaming events for token-level streaming
+      if (event.event === 'on_chat_model_stream') {
+        const chunk = event.data?.chunk;
+        if (chunk && 'content' in chunk) {
+          const text = extractTextContent(chunk.content);
+          if (text.length > 0) {
+            const streamEvent: StreamEvent = {
+              type: 'text_delta',
+              content: text,
+            };
+            if (langfuseHandler?.traceId) {
+              streamEvent.traceId = langfuseHandler.traceId;
+            }
+            yield streamEvent;
+          }
+        }
       }
-    );
 
-    for await (const chunk of stream) {
-      const lastMessage = chunk.messages[chunk.messages.length - 1];
+      // Handle tool start events
+      if (event.event === 'on_tool_start') {
+        const toolName = event.name;
+        const toolInput = event.data?.input;
+        if (toolName) {
+          const streamEvent: StreamEvent = {
+            type: 'tool_call',
+            toolCallId: event.run_id || 'unknown',
+            toolName,
+            toolInput,
+          };
+          if (langfuseHandler?.traceId) {
+            streamEvent.traceId = langfuseHandler.traceId;
+          }
+          yield streamEvent;
+        }
+      }
 
-      if (lastMessage && 'content' in lastMessage) {
-        const content =
-          typeof lastMessage.content === 'string'
-            ? lastMessage.content
-            : JSON.stringify(lastMessage.content);
-
-        if (content) {
-          yield { type: 'token', content, traceId: undefined };
+      // Handle tool end events
+      if (event.event === 'on_tool_end') {
+        const toolName = event.name;
+        const output = event.data?.output;
+        if (toolName && output !== undefined) {
+          const result =
+            typeof output === 'string' ? output : JSON.stringify(output);
+          const streamEvent: StreamEvent = {
+            type: 'tool_result',
+            toolCallId: event.run_id || 'unknown',
+            result,
+          };
+          if (langfuseHandler?.traceId) {
+            streamEvent.traceId = langfuseHandler.traceId;
+          }
+          yield streamEvent;
         }
       }
     }
 
     yield {
       type: 'done',
-      content: '',
       traceId: langfuseHandler?.traceId,
     };
+  } catch (error) {
+    // Extract error details for proper logging
+    const errorDetails = {
+      message: error instanceof Error ? error.message : String(error),
+      name: error instanceof Error ? error.name : 'Unknown',
+      stack: error instanceof Error ? error.stack : undefined,
+    };
+    logger.error({ error: errorDetails, input }, 'Chat stream error');
+    throw error;
   } finally {
+    // Flush Langfuse (SafeCallbackHandler makes this safe)
     if (langfuseHandler) {
       await langfuseHandler.flushAsync();
     }

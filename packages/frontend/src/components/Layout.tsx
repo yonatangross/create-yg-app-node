@@ -26,6 +26,12 @@ export function Layout() {
                 >
                   Users
                 </Link>
+                <Link
+                  to="/chat"
+                  className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-500 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white"
+                >
+                  Chat
+                </Link>
               </div>
             </div>
           </div>

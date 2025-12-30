@@ -141,12 +141,16 @@ export async function closeDb(): Promise<void> {
 
 /**
  * Health check: verify database connectivity
+ * Initializes connection if needed (lazy initialization)
  */
 export async function checkDbHealth(): Promise<boolean> {
   try {
-    const sqlClient = getSqlClient();
+    // Ensure database is initialized (lazy init)
+    await getDb();
+    // Now we can safely get the SQL client
+    const client = getSqlClient();
     // Simple query to verify connection
-    await sqlClient`SELECT 1 as health`;
+    await client`SELECT 1 as health`;
     return true;
   } catch (error) {
     logger.error({ error }, 'Database health check failed');

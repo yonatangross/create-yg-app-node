@@ -5,49 +5,27 @@
  * Uses SHA256 hash for cache keys with configurable TTL.
  *
  * Production-ready pattern for LLM cost optimization.
+ *
+ * Now uses the unified Redis client from core/redis.ts
+ * for proper connection management and graceful shutdown.
  */
 
 import { createHash } from 'crypto';
-import { Redis } from 'ioredis';
+import type { Redis } from 'ioredis';
 import type { OpenAIEmbeddings } from '@langchain/openai';
 import { getEmbeddings } from '../core/models.js';
-import { getConfig } from '../core/config.js';
+import { getRedis } from '../core/redis.js';
 import { getLogger } from '../core/logger.js';
 
 const logger = getLogger();
 
 /**
- * Redis client for caching
- */
-let redisClient: Redis | null = null;
-
-/**
- * Get Redis client (lazy initialization)
+ * Get unified Redis client (delegates to core/redis.ts)
+ *
+ * Uses singleton pattern - connection is managed centrally.
  */
 function getRedisClient(): Redis {
-  if (!redisClient) {
-    const config = getConfig();
-    redisClient = new Redis(config.REDIS_URL, {
-      lazyConnect: true,
-      retryStrategy: (times: number) => {
-        if (times > config.REDIS_MAX_RETRIES) {
-          logger.warn('Redis connection failed, disabling cache');
-          return null;
-        }
-        return Math.min(times * 100, 3000);
-      },
-    });
-
-    redisClient.on('error', (error: Error) => {
-      logger.error({ error }, 'Redis error');
-    });
-
-    redisClient.on('connect', () => {
-      logger.info('Redis connected for embeddings cache');
-    });
-  }
-
-  return redisClient;
+  return getRedis();
 }
 
 /**
@@ -299,12 +277,16 @@ export function getCachedEmbeddings(): CachedEmbeddingsService {
 }
 
 /**
- * Shutdown Redis connection
+ * Shutdown embeddings cache
+ *
+ * Note: The actual Redis connection is now managed by core/redis.ts.
+ * This function is kept for API compatibility but delegates shutdown
+ * to the central Redis manager via shutdownRedis().
  */
 export async function shutdownEmbeddingsCache(): Promise<void> {
-  if (redisClient) {
-    await redisClient.quit();
-    redisClient = null;
-    logger.info('Embeddings cache Redis connection closed');
-  }
+  // Redis connection is managed centrally by core/redis.ts
+  // Calling shutdownRedis() should be done in the main shutdown handler
+  logger.info(
+    'Embeddings cache shutdown requested (connection managed by core/redis)'
+  );
 }
