@@ -131,3 +131,57 @@ export const HealthCheckSchema = z.object({
 });
 
 export type HealthCheck = z.infer<typeof HealthCheckSchema>;
+
+// ============================================================================
+// Chat Types
+// ============================================================================
+
+export const ChatMessageSchema = z.object({
+  id: z.string().uuid(),
+  role: z.enum(['user', 'assistant', 'system']),
+  content: z.string(),
+  timestamp: z.string().datetime(),
+  toolCalls: z
+    .array(
+      z.object({
+        name: z.string(),
+        arguments: z.record(z.unknown()),
+        result: z.unknown().optional(),
+      })
+    )
+    .optional(),
+});
+
+export type ChatMessage = z.infer<typeof ChatMessageSchema>;
+
+export const ChatRequestSchema = z.object({
+  message: z.string().min(1).max(10000),
+  threadId: z.string().uuid().optional(),
+  persona: z.string().max(100).optional(),
+});
+
+export type ChatRequest = z.infer<typeof ChatRequestSchema>;
+
+export const ChatResponseSchema = z.object({
+  response: z.string(),
+  threadId: z.string().uuid(),
+  toolsUsed: z
+    .array(
+      z.object({
+        name: z.string(),
+        arguments: z.record(z.unknown()),
+      })
+    )
+    .optional(),
+  traceId: z.string().optional(),
+});
+
+export type ChatResponse = z.infer<typeof ChatResponseSchema>;
+
+// ============================================================================
+// Chat UI Types (Enhanced)
+// ============================================================================
+
+// Re-export enhanced chat UI types for streaming with content blocks
+// NOTE: StreamEvent and StreamEventSchema are exported from chat-ui.ts
+export * from './chat-ui.js';

@@ -100,6 +100,7 @@ const chatRoutes = new Hono<AppEnv>()
 
   /**
    * GET /api/chat/stream - Stream chat responses via SSE
+   * Input validation with max lengths to prevent abuse
    */
   .get(
     '/stream',
@@ -107,9 +108,9 @@ const chatRoutes = new Hono<AppEnv>()
     zValidator(
       'query',
       z.object({
-        message: z.string().min(1),
+        message: z.string().min(1).max(10000), // Match POST endpoint limits
         threadId: z.string().uuid().optional(),
-        persona: z.string().optional(),
+        persona: z.string().max(100).optional(), // Match POST endpoint limits
       })
     ),
     async (c) => {
@@ -120,7 +121,16 @@ const chatRoutes = new Hono<AppEnv>()
       const sessionId = requestId;
       const thread = threadId ?? crypto.randomUUID();
 
+      // SSE connection timeout (5 minutes) to prevent resource exhaustion
+      const SSE_TIMEOUT_MS = 5 * 60 * 1000;
+
       return streamSSE(c, async (stream) => {
+        const abortController = new AbortController();
+        const timeoutId = setTimeout(() => {
+          logger.warn({ requestId }, 'SSE connection timeout');
+          abortController.abort();
+        }, SSE_TIMEOUT_MS);
+
         try {
           const { chatStream } = await import('../agents/chat-agent.js');
 
@@ -133,20 +143,35 @@ const chatRoutes = new Hono<AppEnv>()
           });
 
           for await (const chunk of generator) {
+            // Check if aborted
+            if (abortController.signal.aborted) {
+              await stream.writeSSE({
+                event: 'error',
+                data: JSON.stringify({
+                  type: 'error',
+                  message: 'Connection timeout',
+                }),
+              });
+              break;
+            }
+
+            // Serialize the entire event (different events have different fields)
             await stream.writeSSE({
               event: chunk.type,
-              data: JSON.stringify({
-                content: chunk.content,
-                traceId: chunk.traceId,
-              }),
+              data: JSON.stringify(chunk),
             });
           }
         } catch (error) {
           logger.error({ error, requestId }, 'Stream error');
           await stream.writeSSE({
             event: 'error',
-            data: JSON.stringify({ message: 'Stream error occurred' }),
+            data: JSON.stringify({
+              type: 'error',
+              message: 'Stream error occurred',
+            }),
           });
+        } finally {
+          clearTimeout(timeoutId);
         }
       });
     }
@@ -256,19 +281,20 @@ const ragRoutes = new Hono<AppEnv>()
           });
 
           for await (const chunk of generator) {
+            // Serialize the entire event (different events have different fields)
             await stream.writeSSE({
               event: chunk.type,
-              data: JSON.stringify({
-                content: chunk.content,
-                traceId: chunk.traceId,
-              }),
+              data: JSON.stringify(chunk),
             });
           }
         } catch (error) {
           logger.error({ error, requestId }, 'RAG stream error');
           await stream.writeSSE({
             event: 'error',
-            data: JSON.stringify({ message: 'Stream error occurred' }),
+            data: JSON.stringify({
+              type: 'error',
+              message: 'Stream error occurred',
+            }),
           });
         }
       });

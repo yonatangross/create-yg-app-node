@@ -336,15 +336,77 @@ export async function chat(input: ChatInput): Promise<ChatOutput> {
 // =============================================================================
 
 /**
- * Stream chat responses
+ * Stream event types with properly typed content
+ */
+export type StreamEvent =
+  | {
+      type: 'text_delta';
+      content: string;
+      traceId?: string;
+    }
+  | {
+      type: 'tool_call';
+      toolCallId: string;
+      toolName: string;
+      toolInput: unknown;
+      traceId?: string;
+    }
+  | {
+      type: 'tool_result';
+      toolCallId: string;
+      result: string;
+      traceId?: string;
+    }
+  | {
+      type: 'done';
+      traceId: string | undefined;
+    };
+
+/**
+ * Extract text content from both OpenAI (string) and Anthropic (content blocks array) formats
+ * @internal Exported for testing - use chatStream for production
+ */
+export function extractTextContent(content: unknown): string {
+  // OpenAI format: content is a string
+  if (typeof content === 'string') {
+    return content;
+  }
+
+  // Anthropic format: content is an array of content blocks
+  if (Array.isArray(content)) {
+    let text = '';
+    for (const block of content) {
+      if (
+        block &&
+        typeof block === 'object' &&
+        'type' in block &&
+        block.type === 'text' &&
+        'text' in block &&
+        typeof block.text === 'string'
+      ) {
+        text += block.text;
+      }
+    }
+    return text;
+  }
+
+  return '';
+}
+
+/**
+ * Stream chat responses using LangGraph's streamEvents() API
+ *
+ * Uses the full LangGraph agent loop with:
+ * - Token-level streaming via 'on_chat_model_stream' events
+ * - Tool execution with 'on_tool_start' and 'on_tool_end' events
+ * - Conversation history/memory via checkpointer
+ * - Support for both OpenAI (string) and Anthropic (content blocks) formats
  *
  * Langfuse tracing is fire-and-forget - errors are logged but never propagate.
  */
-export async function* chatStream(input: ChatInput): AsyncGenerator<{
-  type: 'token' | 'tool_call' | 'tool_result' | 'done';
-  content: string;
-  traceId: string | undefined;
-}> {
+export async function* chatStream(
+  input: ChatInput
+): AsyncGenerator<StreamEvent> {
   const agent = await getChatAgent();
 
   // Create Langfuse handler for tracing (wrapped in SafeCallbackHandler)
@@ -356,6 +418,11 @@ export async function* chatStream(input: ChatInput): AsyncGenerator<{
 
   const callbacks = langfuseHandler ? [langfuseHandler] : [];
 
+  logger.info(
+    { userId: input.userId, threadId: input.threadId },
+    'Starting stream chat'
+  );
+
   const streamParams = {
     messages: [new HumanMessage(input.message)],
     userId: input.userId,
@@ -366,33 +433,83 @@ export async function* chatStream(input: ChatInput): AsyncGenerator<{
   const streamConfig = {
     configurable: { thread_id: input.threadId },
     callbacks,
-    streamMode: 'values' as const,
+    version: 'v2' as const,
   };
 
-  // Stream with SafeCallbackHandler - tracing errors won't propagate
-  const stream = await agent.stream(streamParams, streamConfig);
-
   try {
-    for await (const chunk of stream) {
-      const lastMessage = chunk.messages[chunk.messages.length - 1];
+    // Use streamEvents() for proper LangGraph agent streaming
+    const eventStream = agent.streamEvents(streamParams, streamConfig);
 
-      if (lastMessage && 'content' in lastMessage) {
-        const content =
-          typeof lastMessage.content === 'string'
-            ? lastMessage.content
-            : JSON.stringify(lastMessage.content);
+    for await (const event of eventStream) {
+      // Handle chat model streaming events for token-level streaming
+      if (event.event === 'on_chat_model_stream') {
+        const chunk = event.data?.chunk;
+        if (chunk && 'content' in chunk) {
+          const text = extractTextContent(chunk.content);
+          if (text.length > 0) {
+            const streamEvent: StreamEvent = {
+              type: 'text_delta',
+              content: text,
+            };
+            if (langfuseHandler?.traceId) {
+              streamEvent.traceId = langfuseHandler.traceId;
+            }
+            yield streamEvent;
+          }
+        }
+      }
 
-        if (content) {
-          yield { type: 'token', content, traceId: undefined };
+      // Handle tool start events
+      if (event.event === 'on_tool_start') {
+        const toolName = event.name;
+        const toolInput = event.data?.input;
+        if (toolName) {
+          const streamEvent: StreamEvent = {
+            type: 'tool_call',
+            toolCallId: event.run_id || 'unknown',
+            toolName,
+            toolInput,
+          };
+          if (langfuseHandler?.traceId) {
+            streamEvent.traceId = langfuseHandler.traceId;
+          }
+          yield streamEvent;
+        }
+      }
+
+      // Handle tool end events
+      if (event.event === 'on_tool_end') {
+        const toolName = event.name;
+        const output = event.data?.output;
+        if (toolName && output !== undefined) {
+          const result =
+            typeof output === 'string' ? output : JSON.stringify(output);
+          const streamEvent: StreamEvent = {
+            type: 'tool_result',
+            toolCallId: event.run_id || 'unknown',
+            result,
+          };
+          if (langfuseHandler?.traceId) {
+            streamEvent.traceId = langfuseHandler.traceId;
+          }
+          yield streamEvent;
         }
       }
     }
 
     yield {
       type: 'done',
-      content: '',
       traceId: langfuseHandler?.traceId,
     };
+  } catch (error) {
+    // Extract error details for proper logging
+    const errorDetails = {
+      message: error instanceof Error ? error.message : String(error),
+      name: error instanceof Error ? error.name : 'Unknown',
+      stack: error instanceof Error ? error.stack : undefined,
+    };
+    logger.error({ error: errorDetails, input }, 'Chat stream error');
+    throw error;
   } finally {
     // Flush Langfuse (SafeCallbackHandler makes this safe)
     if (langfuseHandler) {

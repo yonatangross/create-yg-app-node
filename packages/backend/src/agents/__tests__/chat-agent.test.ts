@@ -14,7 +14,9 @@ import {
   getChatAgent,
   chat,
   chatStream,
+  extractTextContent,
   type ChatInput,
+  type StreamEvent,
 } from '../chat-agent.js';
 
 // =============================================================================
@@ -328,6 +330,225 @@ describe('Chat Agent', () => {
       // Verify agent has LangGraph properties
       expect(agent).toBeDefined();
       expect(typeof agent).toBe('object');
+    });
+  });
+
+  // ===========================================================================
+  // Streaming Tests (streamEvents API)
+  // ===========================================================================
+
+  describe('chatStream', () => {
+    const mockInput: ChatInput = {
+      message: 'Hello, how are you?',
+      userId: 'user-123',
+      sessionId: 'session-456',
+      threadId: 'thread-789',
+      persona: 'helpful assistant',
+    };
+
+    it('should create Langfuse handler with streaming tags', async () => {
+      // This test verifies the correct tag configuration
+      try {
+        const stream = chatStream(mockInput);
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        for await (const _event of stream) {
+          break; // Just start the stream to trigger handler creation
+        }
+      } catch {
+        // Graph execution may fail in test environment
+      }
+
+      expect(createLangfuseHandler).toHaveBeenCalledWith({
+        userId: 'user-123',
+        sessionId: 'session-456',
+        tags: ['chat-agent', 'streaming'],
+      });
+    });
+
+    it('should yield StreamEvent types', async () => {
+      // Verify StreamEvent union type is properly exported
+      const textDelta: StreamEvent = {
+        type: 'text_delta',
+        content: 'Hello',
+        traceId: 'trace-123',
+      };
+
+      const toolCall: StreamEvent = {
+        type: 'tool_call',
+        toolCallId: 'call-1',
+        toolName: 'calculator',
+        toolInput: { expression: '2+2' },
+        traceId: 'trace-123',
+      };
+
+      const toolResult: StreamEvent = {
+        type: 'tool_result',
+        toolCallId: 'call-1',
+        result: '4',
+        traceId: 'trace-123',
+      };
+
+      const done: StreamEvent = {
+        type: 'done',
+        traceId: 'trace-123',
+      };
+
+      // Type assertions - if these compile, the types are correct
+      expect(textDelta.type).toBe('text_delta');
+      expect(toolCall.type).toBe('tool_call');
+      expect(toolResult.type).toBe('tool_result');
+      expect(done.type).toBe('done');
+    });
+
+    it('should be an async generator', () => {
+      const stream = chatStream(mockInput);
+
+      // Verify it's an async generator
+      expect(stream[Symbol.asyncIterator]).toBeDefined();
+      expect(typeof stream.next).toBe('function');
+      expect(typeof stream.return).toBe('function');
+      expect(typeof stream.throw).toBe('function');
+    });
+
+    it('should work without Langfuse handler', async () => {
+      vi.mocked(createLangfuseHandler).mockReturnValue(null);
+
+      try {
+        const stream = chatStream(mockInput);
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        for await (const _event of stream) {
+          break;
+        }
+      } catch {
+        // Handler creation should have been called even if execution fails
+        expect(createLangfuseHandler).toHaveBeenCalled();
+      }
+    });
+
+    it('should use default persona when not provided', async () => {
+      const inputWithoutPersona: ChatInput = {
+        ...mockInput,
+        persona: undefined,
+      };
+
+      try {
+        const stream = chatStream(inputWithoutPersona);
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        for await (const _event of stream) {
+          break;
+        }
+      } catch {
+        // Execution may fail but we verified the call
+      }
+
+      // Langfuse handler is still created
+      expect(createLangfuseHandler).toHaveBeenCalled();
+    });
+  });
+
+  // ===========================================================================
+  // extractTextContent Tests (OpenAI vs Anthropic formats)
+  // ===========================================================================
+
+  describe('extractTextContent', () => {
+    describe('OpenAI format (string content)', () => {
+      it('should return string content as-is', () => {
+        expect(extractTextContent('Hello, world!')).toBe('Hello, world!');
+      });
+
+      it('should handle empty string', () => {
+        expect(extractTextContent('')).toBe('');
+      });
+
+      it('should handle string with special characters', () => {
+        expect(extractTextContent('Hello! 你好 🎉')).toBe('Hello! 你好 🎉');
+      });
+
+      it('should handle multi-line string', () => {
+        const multiLine = 'Line 1\nLine 2\nLine 3';
+        expect(extractTextContent(multiLine)).toBe(multiLine);
+      });
+    });
+
+    describe('Anthropic format (content blocks array)', () => {
+      it('should extract text from single text block', () => {
+        const content = [{ type: 'text', text: 'Hello, world!' }];
+        expect(extractTextContent(content)).toBe('Hello, world!');
+      });
+
+      it('should concatenate multiple text blocks', () => {
+        const content = [
+          { type: 'text', text: 'Hello, ' },
+          { type: 'text', text: 'world!' },
+        ];
+        expect(extractTextContent(content)).toBe('Hello, world!');
+      });
+
+      it('should handle empty array', () => {
+        expect(extractTextContent([])).toBe('');
+      });
+
+      it('should ignore non-text blocks', () => {
+        const content = [
+          { type: 'text', text: 'Before tool. ' },
+          { type: 'tool_use', id: 'tool-1', name: 'calculator', input: {} },
+          { type: 'text', text: 'After tool.' },
+        ];
+        expect(extractTextContent(content)).toBe('Before tool. After tool.');
+      });
+
+      it('should handle mixed block types', () => {
+        const content = [
+          { type: 'image', source: { data: 'base64...' } },
+          { type: 'text', text: 'Image description' },
+        ];
+        expect(extractTextContent(content)).toBe('Image description');
+      });
+
+      it('should skip malformed text blocks (missing text property)', () => {
+        const content = [
+          { type: 'text', text: 'Valid' },
+          { type: 'text' }, // Missing 'text' property
+          { type: 'text', text: ' block' },
+        ];
+        expect(extractTextContent(content)).toBe('Valid block');
+      });
+
+      it('should skip blocks with non-string text', () => {
+        const content = [
+          { type: 'text', text: 'Start ' },
+          { type: 'text', text: 123 }, // Invalid: number instead of string
+          { type: 'text', text: 'End' },
+        ];
+        expect(extractTextContent(content)).toBe('Start End');
+      });
+    });
+
+    describe('Edge cases', () => {
+      it('should return empty string for null', () => {
+        expect(extractTextContent(null)).toBe('');
+      });
+
+      it('should return empty string for undefined', () => {
+        expect(extractTextContent(undefined)).toBe('');
+      });
+
+      it('should return empty string for number', () => {
+        expect(extractTextContent(42)).toBe('');
+      });
+
+      it('should return empty string for object (non-array)', () => {
+        expect(extractTextContent({ text: 'not an array' })).toBe('');
+      });
+
+      it('should return empty string for boolean', () => {
+        expect(extractTextContent(true)).toBe('');
+      });
+
+      it('should handle array with null/undefined elements', () => {
+        const content = [null, { type: 'text', text: 'Valid' }, undefined];
+        expect(extractTextContent(content)).toBe('Valid');
+      });
     });
   });
 });

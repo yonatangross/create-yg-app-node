@@ -80,8 +80,8 @@ services:
       CLICKHOUSE_USER: ${CLICKHOUSE_USER:-langfuse}
       CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-langfuse_clickhouse_password}
     ports:
-      - "127.0.0.1:8125:8123"  # HTTP interface (localhost only)
-      - "127.0.0.1:9012:9000"  # Native interface (localhost only)
+      - "8125:8123"  # HTTP interface
+      - "9012:9000"  # Native interface
     volumes:
       - clickhouse_data:/var/lib/clickhouse
       - clickhouse_logs:/var/log/clickhouse-server

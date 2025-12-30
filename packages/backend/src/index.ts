@@ -4,6 +4,10 @@
  * Starts the Hono server and exports types for frontend RPC client.
  */
 
+// Initialize OpenTelemetry FIRST - before any other imports that create spans
+import { initializeOtel, shutdownOtel } from './core/instrumentation.js';
+initializeOtel();
+
 import { serve } from '@hono/node-server';
 import { app } from './app.js';
 import { config } from './core/config.js';
@@ -48,6 +52,9 @@ const server = serve(
 // Graceful shutdown
 gracefulShutdown(server, {
   onShutdown: async () => {
+    // Shutdown OpenTelemetry to flush remaining spans
+    await shutdownOtel();
+
     logger.info('Closing database connections...');
     const { closeDb } = await import('./db/client.js');
     await closeDb();

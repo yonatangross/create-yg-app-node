@@ -62,6 +62,12 @@ const envSchema = z.object({
   CORS_ORIGINS: z
     .string()
     .default('http://localhost:4173,http://localhost:4000'),
+  // Trust proxy headers (X-Forwarded-For, X-Real-IP)
+  // Only enable when behind a reverse proxy (nginx, cloudflare, etc.)
+  TRUST_PROXY: z
+    .string()
+    .transform((val) => val === 'true' || val === '1')
+    .default('false'),
 
   // Resilience
   CIRCUIT_BREAKER_TIMEOUT: z.coerce.number().default(3000), // 3s

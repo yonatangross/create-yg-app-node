@@ -1,19 +1,338 @@
 @import "tailwindcss";
 
+/* ============================================
+   AI Chat Design System
+   Stack: LangGraph + Langfuse + React 19
+   ============================================ */
+
+@theme {
+  /* ========================================
+     Color Palette (oklch format)
+     ======================================== */
+
+  /* Chat Message Colors */
+  --color-chat-user-bg: oklch(0.45 0.18 250);           /* Deep blue bubble */
+  --color-chat-user-text: oklch(0.98 0 0);              /* Pure white text */
+  --color-chat-user-hover: oklch(0.5 0.2 250);          /* Hover state */
+
+  --color-chat-assistant-bg: oklch(0.95 0.01 240);      /* Light gray bubble */
+  --color-chat-assistant-text: oklch(0.25 0.02 240);    /* Dark text */
+  --color-chat-assistant-hover: oklch(0.92 0.01 240);   /* Hover state */
+
+  --color-chat-system-bg: oklch(0.97 0.01 60);          /* Warm neutral */
+  --color-chat-system-text: oklch(0.45 0.03 60);        /* Subtle text */
+
+  /* Tool Invocation Colors */
+  --color-tool-invoke-bg: oklch(0.96 0.04 280);         /* Purple tint */
+  --color-tool-invoke-border: oklch(0.65 0.12 280);     /* Purple border */
+  --color-tool-invoke-icon: oklch(0.55 0.15 280);       /* Purple icon */
+  --color-tool-invoke-text: oklch(0.35 0.05 280);       /* Dark purple text */
+  --color-tool-invoke-pulse: oklch(0.7 0.15 280);       /* Pulsing animation */
+
+  /* Tool Result Colors */
+  --color-tool-result-bg: oklch(0.97 0.01 240);         /* Neutral bg */
+  --color-tool-result-border: oklch(0.85 0.01 240);     /* Subtle border */
+  --color-tool-result-text: oklch(0.3 0.02 240);        /* Body text */
+
+  --color-tool-success-bg: oklch(0.95 0.08 150);        /* Green success */
+  --color-tool-success-border: oklch(0.6 0.15 150);     /* Green border */
+  --color-tool-success-icon: oklch(0.5 0.18 150);       /* Green icon */
+
+  --color-tool-error-bg: oklch(0.96 0.08 25);           /* Red error */
+  --color-tool-error-border: oklch(0.6 0.18 25);        /* Red border */
+  --color-tool-error-icon: oklch(0.55 0.2 25);          /* Red icon */
+  --color-tool-error-text: oklch(0.35 0.08 25);         /* Dark red text */
+
+  /* Streaming Animation Colors */
+  --color-stream-cursor: oklch(0.45 0.18 250);          /* Blue cursor */
+  --color-stream-fade: oklch(0.45 0.18 250 / 0.3);     /* Faded cursor */
+  --color-stream-highlight: oklch(0.85 0.08 60);        /* Typing indicator bg */
+
+  /* Code Block Colors */
+  --color-code-bg: oklch(0.15 0.01 240);                /* Dark code bg */
+  --color-code-text: oklch(0.9 0.02 180);               /* Light code text */
+  --color-code-border: oklch(0.25 0.02 240);            /* Code border */
+  --color-code-inline-bg: oklch(0.93 0.01 240);         /* Inline code bg */
+  --color-code-inline-text: oklch(0.4 0.08 320);        /* Inline code text */
+
+  /* UI Base Colors */
+  --color-background: oklch(0.99 0 0);                  /* Page background */
+  --color-surface: oklch(1 0 0);                        /* Card surface */
+  --color-border: oklch(0.9 0.01 240);                  /* Default border */
+  --color-border-hover: oklch(0.75 0.02 240);           /* Hover border */
+
+  /* Text Colors */
+  --color-text-primary: oklch(0.2 0.02 240);            /* Primary text */
+  --color-text-secondary: oklch(0.5 0.02 240);          /* Secondary text */
+  --color-text-tertiary: oklch(0.65 0.01 240);          /* Tertiary text */
+  --color-text-disabled: oklch(0.75 0.01 240);          /* Disabled text */
+
+  /* Interactive Colors */
+  --color-interactive-primary: oklch(0.5 0.18 250);     /* Primary button */
+  --color-interactive-hover: oklch(0.45 0.2 250);       /* Hover state */
+  --color-interactive-active: oklch(0.4 0.22 250);      /* Active state */
+  --color-interactive-disabled: oklch(0.85 0.01 240);   /* Disabled state */
+
+  /* Status Colors */
+  --color-status-info: oklch(0.55 0.15 230);            /* Info blue */
+  --color-status-warning: oklch(0.65 0.18 70);          /* Warning orange */
+  --color-status-critical: oklch(0.55 0.2 25);          /* Critical red */
+
+  /* ========================================
+     Typography System
+     ======================================== */
+
+  --font-family-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-family-mono: 'JetBrains Mono', 'Fira Code', Consolas, Monaco, monospace;
+  --font-family-chat: var(--font-family-sans);
+
+  /* Font Sizes (8px base grid) */
+  --font-size-xs: 0.75rem;      /* 12px */
+  --font-size-sm: 0.875rem;     /* 14px */
+  --font-size-base: 1rem;       /* 16px - chat messages */
+  --font-size-lg: 1.125rem;     /* 18px */
+  --font-size-xl: 1.25rem;      /* 20px */
+  --font-size-2xl: 1.5rem;      /* 24px - titles */
+  --font-size-3xl: 1.875rem;    /* 30px */
+  --font-size-4xl: 2.25rem;     /* 36px */
+
+  /* Font Weights */
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  /* Line Heights */
+  --line-height-tight: 1.25;    /* Headings */
+  --line-height-normal: 1.5;    /* Body text */
+  --line-height-relaxed: 1.625; /* Chat messages */
+  --line-height-loose: 2;       /* Code blocks */
+
+  /* ========================================
+     Spacing System (8px grid)
+     ======================================== */
+
+  --spacing-0: 0;
+  --spacing-1: 0.25rem;         /* 4px */
+  --spacing-2: 0.5rem;          /* 8px */
+  --spacing-3: 0.75rem;         /* 12px */
+  --spacing-4: 1rem;            /* 16px - message gap */
+  --spacing-5: 1.25rem;         /* 20px */
+  --spacing-6: 1.5rem;          /* 24px - bubble padding */
+  --spacing-8: 2rem;            /* 32px */
+  --spacing-10: 2.5rem;         /* 40px */
+  --spacing-12: 3rem;           /* 48px */
+  --spacing-16: 4rem;           /* 64px */
+  --spacing-20: 5rem;           /* 80px */
+
+  /* Chat-specific spacing */
+  --spacing-message-gap: var(--spacing-4);          /* 16px between messages */
+  --spacing-bubble-padding-x: var(--spacing-4);     /* 16px horizontal */
+  --spacing-bubble-padding-y: var(--spacing-3);     /* 12px vertical */
+  --spacing-tool-inset: var(--spacing-3);           /* 12px tool indent */
+  --spacing-code-padding: var(--spacing-4);         /* 16px code block */
+
+  /* ========================================
+     Border Radius System
+     ======================================== */
+
+  --radius-none: 0;
+  --radius-sm: 0.25rem;         /* 4px */
+  --radius-md: 0.5rem;          /* 8px - small elements */
+  --radius-lg: 0.75rem;         /* 12px - chat bubbles */
+  --radius-xl: 1rem;            /* 16px - cards */
+  --radius-2xl: 1.5rem;         /* 24px - large cards */
+  --radius-full: 9999px;        /* Pills, avatars */
+
+  /* Chat-specific radius */
+  --radius-bubble: var(--radius-lg);                /* 12px */
+  --radius-tool: var(--radius-md);                  /* 8px */
+  --radius-code: var(--radius-md);                  /* 8px */
+
+  /* ========================================
+     Shadow System (elevation)
+     ======================================== */
+
+  --shadow-sm: 0 1px 2px 0 oklch(0.2 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px oklch(0.2 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px oklch(0.2 0 0 / 0.1);
+  --shadow-xl: 0 20px 25px -5px oklch(0.2 0 0 / 0.1);
+  --shadow-2xl: 0 25px 50px -12px oklch(0.2 0 0 / 0.25);
+
+  /* Chat-specific shadows */
+  --shadow-bubble: var(--shadow-sm);
+  --shadow-tool: var(--shadow-md);
+  --shadow-hover: var(--shadow-md);
+
+  /* ========================================
+     Animation Tokens
+     ======================================== */
+
+  /* Durations */
+  --duration-instant: 100ms;
+  --duration-fast: 150ms;
+  --duration-normal: 200ms;
+  --duration-slow: 300ms;
+  --duration-slower: 500ms;
+
+  /* Chat-specific durations */
+  --duration-bubble-appear: var(--duration-normal);
+  --duration-tool-expand: var(--duration-slow);
+  --duration-cursor-blink: 1000ms;
+  --duration-tool-pulse: 2000ms;
+
+  /* Easing Functions */
+  --ease-linear: linear;
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+
+  /* Chat-specific easing */
+  --ease-bubble: var(--ease-out);
+  --ease-tool: var(--ease-in-out);
+  --ease-cursor: steps(1, end);
+
+  /* ========================================
+     Z-Index Scale
+     ======================================== */
+
+  --z-base: 0;
+  --z-dropdown: 100;
+  --z-sticky: 200;
+  --z-overlay: 300;
+  --z-modal: 400;
+  --z-tooltip: 500;
+}
+
+/* ============================================
+   Dark Mode Overrides
+   ============================================ */
+
+@media (prefers-color-scheme: dark) {
+  @theme {
+    /* Chat Message Colors (Dark) */
+    --color-chat-user-bg: oklch(0.5 0.2 250);
+    --color-chat-user-text: oklch(0.98 0 0);
+    --color-chat-user-hover: oklch(0.55 0.22 250);
+
+    --color-chat-assistant-bg: oklch(0.2 0.02 240);
+    --color-chat-assistant-text: oklch(0.9 0.01 240);
+    --color-chat-assistant-hover: oklch(0.25 0.02 240);
+
+    --color-chat-system-bg: oklch(0.18 0.02 60);
+    --color-chat-system-text: oklch(0.7 0.02 60);
+
+    /* Tool Colors (Dark) */
+    --color-tool-invoke-bg: oklch(0.22 0.05 280);
+    --color-tool-invoke-border: oklch(0.5 0.12 280);
+    --color-tool-invoke-icon: oklch(0.65 0.15 280);
+    --color-tool-invoke-text: oklch(0.85 0.05 280);
+
+    --color-tool-result-bg: oklch(0.18 0.02 240);
+    --color-tool-result-border: oklch(0.3 0.02 240);
+    --color-tool-result-text: oklch(0.85 0.01 240);
+
+    --color-tool-success-bg: oklch(0.2 0.06 150);
+    --color-tool-success-border: oklch(0.5 0.15 150);
+    --color-tool-success-icon: oklch(0.65 0.18 150);
+
+    --color-tool-error-bg: oklch(0.22 0.06 25);
+    --color-tool-error-border: oklch(0.5 0.15 25);
+    --color-tool-error-icon: oklch(0.65 0.18 25);
+    --color-tool-error-text: oklch(0.85 0.08 25);
+
+    /* Code Colors (Dark) */
+    --color-code-bg: oklch(0.12 0.01 240);
+    --color-code-text: oklch(0.88 0.02 180);
+    --color-code-border: oklch(0.2 0.02 240);
+    --color-code-inline-bg: oklch(0.22 0.02 240);
+    --color-code-inline-text: oklch(0.75 0.08 320);
+
+    /* UI Base (Dark) */
+    --color-background: oklch(0.15 0.01 240);
+    --color-surface: oklch(0.18 0.01 240);
+    --color-border: oklch(0.3 0.02 240);
+    --color-border-hover: oklch(0.45 0.03 240);
+
+    /* Text (Dark) */
+    --color-text-primary: oklch(0.92 0.01 240);
+    --color-text-secondary: oklch(0.7 0.01 240);
+    --color-text-tertiary: oklch(0.55 0.01 240);
+    --color-text-disabled: oklch(0.4 0.01 240);
+  }
+}
+
+/* ============================================
+   Keyframe Animations
+   ============================================ */
+
+@keyframes cursor-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+@keyframes tool-pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.02);
+  }
+}
+
+@keyframes bubble-appear {
+  0% {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes tool-expand {
+  0% {
+    max-height: 0;
+    opacity: 0;
+  }
+  100% {
+    max-height: 500px;
+    opacity: 1;
+  }
+}
+
+@keyframes typing-indicator {
+  0%, 60%, 100% { opacity: 0.3; }
+  30% { opacity: 1; }
+}
+
+@keyframes fade-in {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+@keyframes slide-up {
+  0% { transform: translateY(100%); }
+  100% { transform: translateY(0); }
+}
+
+/* ============================================
+   Base Styles
+   ============================================ */
+
 :root {
-  font-family:
-    Inter,
-    system-ui,
-    Avenir,
-    Helvetica,
-    Arial,
-    sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
+  font-family: var(--font-family-sans);
+  line-height: var(--line-height-normal);
+  font-weight: var(--font-weight-normal);
 
   color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+  color: var(--color-text-primary);
+  background-color: var(--color-background);
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -25,11 +344,81 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+  background-color: var(--color-background);
+  color: var(--color-text-primary);
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
+/* ============================================
+   Utility Classes
+   ============================================ */
+
+.animate-cursor-blink {
+  animation: cursor-blink var(--duration-cursor-blink) var(--ease-cursor) infinite;
+}
+
+.animate-tool-pulse {
+  animation: tool-pulse var(--duration-tool-pulse) var(--ease-in-out) infinite;
+}
+
+.animate-bubble-appear {
+  animation: bubble-appear var(--duration-bubble-appear) var(--ease-bubble);
+}
+
+.animate-tool-expand {
+  animation: tool-expand var(--duration-tool-expand) var(--ease-tool);
+}
+
+.animate-typing-indicator {
+  animation: typing-indicator 1.4s ease-in-out infinite;
+}
+
+.animate-fade-in {
+  animation: fade-in var(--duration-normal) var(--ease-out);
+}
+
+.animate-slide-up {
+  animation: slide-up var(--duration-slow) var(--ease-out);
+}
+
+/* ============================================
+   Accessibility
+   ============================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  :root {
+    --color-border: oklch(0.5 0 0);
+    --color-text-primary: oklch(0 0 0);
+  }
+}
+
+/* ============================================
+   Scrollbar Styling (Chat Container)
+   ============================================ */
+
+.chat-scrollbar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.chat-scrollbar::-webkit-scrollbar-track {
+  background: var(--color-background);
+}
+
+.chat-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: var(--radius-full);
+}
+
+.chat-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--color-border-hover);
 }

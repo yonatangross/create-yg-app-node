@@ -252,13 +252,21 @@ describe('Chat Routes', () => {
       // Mock async generator with literal types using 'as const'
       const mockGenerator = async function* () {
         yield {
-          type: 'token' as const,
+          type: 'text_delta' as const,
           content: 'Starting...',
           traceId: 'trace-1',
         };
-        yield { type: 'token' as const, content: 'Hello', traceId: 'trace-1' };
-        yield { type: 'token' as const, content: ' world', traceId: 'trace-1' };
-        yield { type: 'done' as const, content: 'Done', traceId: 'trace-1' };
+        yield {
+          type: 'text_delta' as const,
+          content: 'Hello',
+          traceId: 'trace-1',
+        };
+        yield {
+          type: 'text_delta' as const,
+          content: ' world',
+          traceId: 'trace-1',
+        };
+        yield { type: 'done' as const, traceId: 'trace-1' };
       };
       vi.mocked(chatStream).mockReturnValue(mockGenerator());
 
@@ -269,7 +277,7 @@ describe('Chat Routes', () => {
 
       // Read stream
       const text = await res.text();
-      expect(text).toContain('event: token');
+      expect(text).toContain('event: text_delta');
       expect(text).toContain('event: done');
       expect(text).toContain('Starting...');
       expect(text).toContain('Hello');
@@ -279,7 +287,7 @@ describe('Chat Routes', () => {
     it('should use query parameters for stream', async () => {
       const { chatStream } = await import('../../agents/chat-agent.js');
       const mockGenerator = async function* () {
-        yield { type: 'done' as const, content: 'Done', traceId: 'trace-2' };
+        yield { type: 'done' as const, traceId: 'trace-2' };
       };
       vi.mocked(chatStream).mockReturnValue(mockGenerator());
 
@@ -318,7 +326,7 @@ describe('Chat Routes', () => {
       const { chatStream } = await import('../../agents/chat-agent.js');
       const mockGenerator = async function* () {
         yield {
-          type: 'token' as const,
+          type: 'text_delta' as const,
           content: 'Starting...',
           traceId: 'trace-3',
         };

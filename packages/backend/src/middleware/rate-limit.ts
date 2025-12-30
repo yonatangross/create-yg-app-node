@@ -22,6 +22,7 @@ import type { Context, Next } from 'hono';
 import type { Redis } from 'ioredis';
 import { getRedis, isRedisHealthy } from '../core/redis.js';
 import { getLogger } from '../core/logger.js';
+import { getConfig } from '../core/config.js';
 
 const logger = getLogger();
 
@@ -163,30 +164,72 @@ function getRateLimiter(
 }
 
 /**
+ * Validate IP address format (IPv4 or IPv6)
+ */
+function isValidIP(ip: string): boolean {
+  // IPv4 pattern
+  const ipv4Pattern =
+    /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+  // IPv6 simplified pattern (covers most cases)
+  const ipv6Pattern = /^([0-9a-fA-F]{0,4}:){2,7}[0-9a-fA-F]{0,4}$/;
+
+  return ipv4Pattern.test(ip) || ipv6Pattern.test(ip);
+}
+
+/**
  * Extract client identifier from request
  *
- * Priority: X-Forwarded-For > X-Real-IP > Remote Address
+ * SECURITY: Only trusts proxy headers (X-Forwarded-For, X-Real-IP) when
+ * TRUST_PROXY is enabled. Without trusted proxy, attackers could spoof
+ * their IP to bypass rate limiting.
  *
  * @param c - Hono context
  * @returns Client IP or identifier
  */
 function getClientIdentifier(c: Context): string {
-  // Check X-Forwarded-For (proxy/load balancer)
-  const forwardedFor = c.req.header('x-forwarded-for');
-  if (forwardedFor) {
-    // Take first IP if multiple proxies
-    const firstIp = forwardedFor.split(',')[0];
-    return firstIp ? firstIp.trim() : 'unknown';
+  const config = getConfig();
+
+  // Only trust proxy headers when explicitly configured
+  if (config.TRUST_PROXY) {
+    // Check X-Forwarded-For (proxy/load balancer)
+    const forwardedFor = c.req.header('x-forwarded-for');
+    if (forwardedFor) {
+      // Take first IP (client IP when behind proper proxy)
+      const firstIp = forwardedFor.split(',')[0]?.trim();
+      if (firstIp && isValidIP(firstIp)) {
+        return firstIp;
+      }
+    }
+
+    // Check X-Real-IP (nginx convention)
+    const realIp = c.req.header('x-real-ip');
+    if (realIp && isValidIP(realIp)) {
+      return realIp;
+    }
   }
 
-  // Check X-Real-IP
-  const realIp = c.req.header('x-real-ip');
-  if (realIp) {
-    return realIp;
-  }
+  // When not trusting proxy or no valid proxy headers:
+  // Use a combination of available identifiers for rate limiting
+  // This is less accurate but prevents IP spoofing attacks
+  const userAgent = c.req.header('user-agent') || 'unknown-ua';
+  const acceptLanguage = c.req.header('accept-language') || 'unknown-lang';
 
-  // Fallback to remote address (may not be available in all environments)
-  return 'unknown';
+  // Create a fingerprint-based identifier (not perfect, but prevents trivial spoofing)
+  // In production, consider using session tokens or API keys instead
+  return `client-${hashString(userAgent + acceptLanguage)}`;
+}
+
+/**
+ * Simple string hash for fingerprinting (not cryptographic)
+ */
+function hashString(str: string): string {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = (hash << 5) - hash + char;
+    hash = hash & hash; // Convert to 32-bit integer
+  }
+  return Math.abs(hash).toString(36);
 }
 
 /**

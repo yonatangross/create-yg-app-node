@@ -81,6 +81,9 @@ function getLangfuseClient(): Langfuse | null {
  * - LLM operations continue unaffected by tracing failures
  *
  * Fixes: 403 Forbidden errors from Langfuse breaking the chat agent
+ *
+ * Note: @langfuse/langchain v4.x uses OpenTelemetry internally.
+ * The flushAsync method must use the main Langfuse singleton, not the handler.
  */
 class SafeCallbackHandler extends BaseCallbackHandler {
   name = 'SafeCallbackHandler';
@@ -91,10 +94,12 @@ class SafeCallbackHandler extends BaseCallbackHandler {
 
   /**
    * Access the underlying trace ID
+   * Note: In v4.x, this property is `last_trace_id` not `traceId`
    */
   get traceId(): string | undefined {
     try {
-      return this.handler.traceId;
+      // v4.x uses last_trace_id property
+      return this.handler.last_trace_id ?? undefined;
     } catch (error) {
       logger.warn({ error }, 'Failed to get traceId from Langfuse handler');
       return undefined;
@@ -102,14 +107,25 @@ class SafeCallbackHandler extends BaseCallbackHandler {
   }
 
   /**
-   * Wrapper for flushAsync - errors are caught and logged
+   * Wrapper for flushAsync - uses the main Langfuse singleton client
+   * Note: @langfuse/langchain v4.x CallbackHandler doesn't have flushAsync,
+   * so we flush the main Langfuse client instead
    */
   async flushAsync(): Promise<void> {
     try {
-      await this.handler.flushAsync();
+      // Use the singleton Langfuse client for flushing
+      const client = getLangfuseClient();
+      if (client) {
+        await client.flushAsync();
+      }
     } catch (error) {
+      // Extract meaningful error information for logging
+      const errorInfo =
+        error instanceof Error
+          ? { message: error.message, name: error.name, stack: error.stack }
+          : { raw: String(error) };
       logger.warn(
-        { error },
+        { error: errorInfo },
         'Langfuse flush failed - continuing without tracing'
       );
     }
