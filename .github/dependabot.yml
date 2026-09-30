@@ -7,12 +7,13 @@ updates:
       day: "monday"
     open-pull-requests-limit: 10
     ignore:
-      # Hold TypeScript on 5.9.x (blocks 6.x and 7.x). typescript-eslint 8.x throws
-      # "typescript-eslint does not support TS 7.0" at config load, which fails
-      # `pnpm lint` (PR #21). Remove once typescript-eslint supports TS 7:
+      # Hold TypeScript on 6.0.x. typescript-eslint 8.x peers on typescript
+      # ">=4.8.4 <6.1.0" and throws "typescript-eslint does not support TS 7.0"
+      # at config load, which fails `pnpm lint` (PR #21). Widen this once
+      # typescript-eslint widens its peer range:
       # https://github.com/typescript-eslint/typescript-eslint/issues/10940
       - dependency-name: "typescript"
-        versions: [">=6.0.0"]
+        versions: [">=6.1.0"]
     groups:
       development-dependencies:
         dependency-type: "development"
